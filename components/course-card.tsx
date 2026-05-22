@@ -1,11 +1,10 @@
-import { BookOpen, Users, MoreHorizontal } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import Link from "next/link";
+import { BookOpen, Users } from "lucide-react";
+import { CourseCardActions } from "@/components/course-card-actions";
 import type { CourseRow } from "@/lib/queries/courses";
+import type { StorageFile } from "@/lib/storage-utils";
+
+type Teacher = { id: string; full_name: string };
 
 const statusStyles: Record<string, string> = {
   publicado: "bg-green-100 text-green-700",
@@ -23,11 +22,24 @@ type Props = {
   course: CourseRow;
   /** Mostrar el menú de acciones de admin (editar, archivar, eliminar) */
   showActions?: boolean;
+  teachers?: Teacher[];
+  libraryFiles?: StorageFile[];
 };
 
-export function CourseCard({ course, showActions = false }: Props) {
+export function CourseCard({
+  course,
+  showActions = false,
+  teachers = [],
+  libraryFiles = [],
+}: Props) {
   return (
-    <div className="rounded-xl border border-[var(--color-neutral-200)] bg-white overflow-hidden flex flex-col">
+    <div className="relative rounded-xl border border-[var(--color-neutral-200)] bg-white overflow-hidden flex flex-col">
+      {/* Stretched link — cubre toda la tarjeta excepto las acciones */}
+      <Link
+        href={`/dashboard/courses/${course.id}`}
+        className="absolute inset-0 z-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        aria-label={`Ver curso: ${course.title}`}
+      />
       {/* Portada */}
       <div className="h-36 bg-[var(--color-neutral-100)] flex items-center justify-center">
         {course.cover_url ? (
@@ -54,21 +66,13 @@ export function CourseCard({ course, showActions = false }: Props) {
           </div>
 
           {showActions && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="shrink-0 p-1 rounded-md hover:bg-[var(--color-neutral-100)] text-[var(--color-neutral-400)]">
-                  <MoreHorizontal className="size-4" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem>Editar</DropdownMenuItem>
-                <DropdownMenuItem>Ver alumnos</DropdownMenuItem>
-                <DropdownMenuItem>Archivar</DropdownMenuItem>
-                <DropdownMenuItem className="text-red-600">
-                  Eliminar
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <div className="relative z-10">
+              <CourseCardActions
+                course={course}
+                teachers={teachers}
+                libraryFiles={libraryFiles}
+              />
+            </div>
           )}
         </div>
 

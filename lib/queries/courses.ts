@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 
 export type CourseRow = {
   id: string;
@@ -6,14 +6,13 @@ export type CourseRow = {
   description: string | null;
   cover_url: string | null;
   status: "borrador" | "publicado" | "archivado";
+  teacher_id: string | null;
   teacher: string | null;
   enrolled: number;
 };
 
 export async function getCourses(): Promise<CourseRow[]> {
-  const supabase = await createClient();
-
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from("courses")
     .select(
       `
@@ -22,6 +21,7 @@ export async function getCourses(): Promise<CourseRow[]> {
       description,
       cover_url,
       status,
+      teacher_id,
       teacher:profiles!teacher_id(full_name),
       enrollments(count)
     `
@@ -40,6 +40,7 @@ export async function getCourses(): Promise<CourseRow[]> {
     description: c.description,
     cover_url: c.cover_url,
     status: c.status as "borrador" | "publicado" | "archivado",
+    teacher_id: c.teacher_id ?? null,
     teacher: (c.teacher as { full_name: string } | null)?.full_name ?? null,
     enrolled: (c.enrollments as { count: number }[])?.[0]?.count ?? 0,
   }));

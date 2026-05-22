@@ -21,12 +21,26 @@ export async function listStorageFiles(bucket: string): Promise<StorageFile[]> {
   return getStorageFiles(bucket);
 }
 
+function sanitizeFileName(name: string): string {
+  return (
+    name
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9\-_]/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "")
+      .substring(0, 60) || "archivo"
+  );
+}
+
 export async function uploadFile(
   bucket: string,
   _prev: UploadState,
   formData: FormData
 ): Promise<UploadState> {
   const file = formData.get("file") as File | null;
+  const customName = (formData.get("name") as string | null)?.trim();
 
   if (!file || file.size === 0) {
     return { message: "Selecciona un archivo." };
@@ -39,6 +53,10 @@ export async function uploadFile(
     return { message: `El archivo no debe superar los ${isImage ? "10" : "50"} MB.` };
   }
 
+  const baseName = customName
+    ? sanitizeFileName(customName)
+    : sanitizeFileName(file.name.replace(/\.[^/.]+$/, ""));
+
   let uploadBuffer: Buffer;
   let contentType: string;
   let fileName: string;
@@ -49,12 +67,12 @@ export async function uploadFile(
       .webp({ quality: 80 })
       .toBuffer();
     contentType = "image/webp";
-    fileName = `${Date.now()}.webp`;
+    fileName = `${baseName}_${Date.now()}.webp`;
   } else {
     uploadBuffer = Buffer.from(await file.arrayBuffer());
     contentType = file.type || "application/octet-stream";
     const ext = file.name.split(".").pop() ?? "bin";
-    fileName = `${Date.now()}.${ext}`;
+    fileName = `${baseName}_${Date.now()}.${ext}`;
   }
 
   const { error } = await supabaseAdmin.storage
@@ -74,6 +92,43 @@ export async function uploadFile(
 
 export async function listVideos(): Promise<VideoRow[]> {
   return getVideos();
+}
+
+export async function renameStorageFile(
+  bucket: string,
+  oldPath: string,
+  newName: string
+): Promise<{ success?: boolean; message?: string }> {
+  const ext = oldPath.split(".").pop() ?? "bin";
+  const newPath = `${sanitizeFileName(newName)}_${Date.now()}.${ext}`;
+
+  const { error } = await supabaseAdmin.storage.from(bucket).move(oldPath, newPath);
+
+  if (error) {
+    console.error("[renameStorageFile]", error.message);
+    return { message: "No se pudo renombrar el archivo." };
+  }
+
+  revalidatePath("/dashboard/library");
+  return { success: true };
+}
+
+export async function renameVideo(
+  videoId: string,
+  title: string
+): Promise<{ success?: boolean; message?: string }> {
+  const { error } = await supabaseAdmin
+    .from("media_videos")
+    .update({ title })
+    .eq("id", videoId);
+
+  if (error) {
+    console.error("[renameVideo]", error.message);
+    return { message: "No se pudo actualizar el nombre." };
+  }
+
+  revalidatePath("/dashboard/library");
+  return { success: true };
 }
 
 export async function deleteStorageFile(

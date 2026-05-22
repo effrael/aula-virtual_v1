@@ -34,3 +34,29 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+claude.md
+
+- instrucciones que recuerda claude en cada conversación
+- idioma, tono, stack, arquitectura del proyecto
+  pedirle que te haga preguntas para entender exactamente lo que necesitas
+
+## Subagentes:
+
+-
+
+## Skills pesonalizadas
+
+- /skill-creator: habilidades predefinidas
+  file memory -> vive la memoria
+  desision.md: desicones resientes
+  /status-line: modelo que usas, idioma, esfuerzo de pensamiento, contexto
+  /rewind -> retroceder atrás
+
+## playwright
+
+- abre el navegador, llena formularios, navega e interactúa y toma capturas por su cuenta; tomando control de la computadora
+
+## memoria
+
+-

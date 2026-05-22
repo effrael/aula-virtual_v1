@@ -25,7 +25,7 @@ create table public.courses (
 ```
 
 - `cover_url` → URL de imagen del bucket `library` (Supabase Storage). Se selecciona desde MediaPicker.
-- `status` → ciclo: `borrador` → `publicado` → `archivado`
+- `status` → ciclo reversible: `borrador` ⇄ `publicado` ⇄ `archivado`
 - `deleted_at` → soft delete. Siempre filtrar `where deleted_at is null`
 
 ### Tabla: `enrollments`
@@ -48,46 +48,75 @@ create table public.enrollments (
 ```
 app/
 ├── actions/
-│   └── courses.ts                          # createCourse (server action)
+│   └── courses.ts                          # createCourse, updateCourse, updateCourseStatus, deleteCourse
 └── dashboard/
     └── courses/
         ├── page.tsx                        # Catálogo (server component, async)
+        ├── [id]/
+        │   ├── page.tsx                    # Detalle del curso (server component, async)
+        │   └── _components/
+        │       ├── module-list.tsx         # Orquestador cliente: estado de dialogs
+        │       ├── module-item.tsx         # Módulo colapsable con acciones
+        │       ├── lesson-item.tsx         # Fila de lección con acciones
+        │       ├── create-module-dialog.tsx
+        │       ├── edit-module-dialog.tsx
+        │       ├── create-lesson-dialog.tsx
+        │       └── edit-lesson-dialog.tsx
         └── _components/
             └── create-course-dialog.tsx    # Dialog de creación (client component)
 
 components/
-└── course-card.tsx                         # Tarjeta reutilizable (admin + alumno)
+├── course-card.tsx                         # Tarjeta reutilizable (admin + alumno)
+├── course-card-actions.tsx                 # Dropdown de acciones del admin (client)
+└── edit-course-dialog.tsx                  # Dialog de edición (client, controlado)
 
 lib/
 └── queries/
-    └── courses.ts                          # getCourses() + CourseRow type
+    ├── courses.ts                          # getCourses() + CourseRow type
+    └── modules.ts                          # getCourseWithModules() + tipos
 ```
 
 ---
 
-## Flujo de datos
+## Flujo de datos — Catálogo
 
 ```
 CoursesPage (server)
-  ├── getCourses()        → lib/queries/courses.ts → Supabase (con join a profiles + count enrollments)
-  ├── getUsersByRole()    → lib/queries/users.ts   → RPC get_users_by_role('docente')
-  └── getStorageFiles()  → lib/queries/storage.ts → Supabase Storage bucket 'library'
+  ├── getCourses()        → lib/queries/courses.ts    → supabaseAdmin
+  ├── getUsersByRole()    → lib/queries/users.ts      → RPC get_users_by_role('docente')
+  └── getStorageFiles()  → lib/queries/storage.ts    → supabaseAdmin Storage
         ↓
-  CreateCourseDialog (client)
-    └── MediaPicker (accept="image") → filtra solo imágenes del library
+  CourseCard (server, presentacional)
+    └── CourseCardActions (client) → updateCourseStatus | deleteCourse
+    └── EditCourseDialog  (client) → updateCourse
+  CreateCourseDialog (client)      → createCourse
+```
+
+## Flujo de datos — Detalle del curso
+
+```
+CourseDetailPage (server)
+  ├── getCourseWithModules() → lib/queries/modules.ts → supabaseAdmin
+  ├── getVideos()            → lib/queries/videos.ts  → supabaseAdmin (solo status='listo')
+  └── getStorageFiles()      → lib/queries/storage.ts → supabaseAdmin
         ↓
-  createCourse (server action)
-    └── supabase.from("courses").insert({ title, description, teacher_id, cover_url })
-        └── revalidatePath("/dashboard/courses")
+  ModuleList (client) — dueño de todo el estado de dialogs
+    ├── ModuleItem (client) → deleteModule (useTransition)
+    │   └── LessonItem (client) → deleteLesson (useTransition)
+    ├── CreateModuleDialog  → createModule
+    ├── EditModuleDialog    → updateModule
+    ├── CreateLessonDialog  → createLesson
+    └── EditLessonDialog    → updateLesson
 ```
 
 ---
 
-## Query principal: `getCourses()`
+## Queries
+
+### `getCourses()` — `lib/queries/courses.ts`
 
 ```typescript
-// lib/queries/courses.ts
-supabase
+supabaseAdmin
   .from("courses")
   .select(`
     id, title, description, cover_url, status,
@@ -98,6 +127,8 @@ supabase
   .order("created_at", { ascending: false })
 ```
 
+> Usa `supabaseAdmin` para bypassear RLS en el join con `profiles`.
+
 Devuelve `CourseRow[]`:
 ```typescript
 type CourseRow = {
@@ -106,22 +137,56 @@ type CourseRow = {
   description: string | null;
   cover_url: string | null;
   status: "borrador" | "publicado" | "archivado";
-  teacher: string | null;   // full_name del docente
-  enrolled: number;         // count de enrollments
+  teacher: string | null;
+  enrolled: number;
 };
 ```
 
----
-
-## Server Action: `createCourse`
+### `getCourseWithModules(courseId)` — `lib/queries/modules.ts`
 
 ```typescript
-// app/actions/courses.ts
-// Campos: title (requerido), description (opcional), teacher_id (uuid, requerido), cover_url (url, opcional)
-// Status inicial: "borrador"
-// Validación: Zod
-// Al terminar: revalidatePath("/dashboard/courses")
+supabaseAdmin
+  .from("courses")
+  .select(`
+    id, title, description, cover_url, status,
+    teacher:profiles!teacher_id(full_name),
+    modules(
+      id, title, position,
+      lessons(id, title, description, position, type, video_id, external_url, deleted_at)
+    )
+  `)
+  .eq("id", courseId)
+  .is("deleted_at", null)
+  .single()
 ```
+
+Ordena módulos y lecciones por `position` en el cliente. Filtra lecciones con `deleted_at !== null`.
+
+---
+
+## Server Actions — `app/actions/courses.ts`
+
+| Función | Descripción |
+|---|---|
+| `createCourse` | Inserta curso con `status: 'borrador'`. Valida con Zod. |
+| `updateCourse` | Actualiza título, descripción, docente y portada. |
+| `updateCourseStatus` | Cambia status: `borrador` ↔ `publicado` ↔ `archivado`. |
+| `deleteCourse` | Soft delete — setea `deleted_at`. |
+
+> Todas usan `createClient()` (sesión del usuario). `courses` no tiene RLS habilitado.
+
+## Server Actions — `app/actions/modules.ts`
+
+| Función | Descripción |
+|---|---|
+| `createModule` | Inserta módulo. Calcula `position` como `max + 1`. |
+| `updateModule` | Actualiza título. |
+| `deleteModule` | Hard delete (cascade elimina las lecciones). |
+| `createLesson` | Inserta lección tipo `video` o `link`. Valida con `discriminatedUnion`. |
+| `updateLesson` | Actualiza lección. Limpia el campo contrario al tipo activo. |
+| `deleteLesson` | Soft delete — setea `deleted_at`. |
+
+> Todas usan `supabaseAdmin` porque `modules` y `lessons` tienen RLS habilitado sin políticas.
 
 ---
 
@@ -131,29 +196,52 @@ type CourseRow = {
 // components/course-card.tsx
 type Props = {
   course: CourseRow;
-  showActions?: boolean; // true = muestra DropdownMenu (admin). false = sin menú (alumno)
+  showActions?: boolean;   // true = admin, false = alumno
+  teachers?: Teacher[];    // requerido cuando showActions=true
+  libraryFiles?: StorageFile[];
 };
 ```
 
-- `showActions=true` → muestra Editar, Ver alumnos, Archivar, Eliminar
-- `showActions=false` (default) → solo info. Uso en vista del alumno.
-- Si `cover_url` existe → muestra imagen. Si no → ícono placeholder.
+- Usa **stretched link** (`<Link>` absoluto `z-0`) para navegar a `/dashboard/courses/[id]`
+- `CourseCardActions` tiene `z-10` para no interferir con el link
+- `showActions=true` → muestra `CourseCardActions` con dropdown (Editar, Publicar, Archivar, Restaurar, Eliminar)
+- `showActions=false` → solo info. Uso en vista del alumno.
+
+### Transiciones de estado desde `CourseCardActions`
+
+| Status actual | Opciones disponibles |
+|---|---|
+| `borrador` | Publicar, Archivar |
+| `publicado` | Archivar |
+| `archivado` | Republicar, Restaurar a borrador |
 
 ---
 
-## Comportamiento de la página
+## Comportamiento de las páginas
 
-- **Sin cursos:** oculta KPIs, muestra estado vacío con botón "Nuevo curso"
-- **Con cursos:** muestra 4 KPIs (total, publicados, borrador, archivados) calculados dinámicamente + grid de tarjetas
-- **KPIs:** calculados en el servidor filtrando el array de cursos (no hay query separada)
+### `/dashboard/courses` — Catálogo
+- **Sin cursos:** estado vacío con botón "Nuevo curso"
+- **Con cursos:** 4 KPIs (total, publicados, borrador, archivados) + grid de tarjetas
+- KPIs calculados en el servidor filtrando el array (no hay query separada)
+
+### `/dashboard/courses/[id]` — Detalle
+- Banner con portada, título, status, docente y contadores (módulos / lecciones)
+- Lista de módulos colapsables con sus lecciones
+- Cada módulo: número de orden, título, contador de lecciones, dropdown (Editar, Eliminar)
+- Cada lección: ícono de tipo (video/link), título, descripción, badge de tipo, dropdown (Editar, Eliminar)
+- Estado vacío cuando no hay módulos
+- Estado vacío dentro del módulo cuando no tiene lecciones
 
 ---
 
 ## Próximos pasos
 
-1. Editar curso (modal o página `/dashboard/courses/[id]/edit`)
-2. Publicar / archivar curso desde el DropdownMenu
-3. Soft delete de curso
-4. Vista de alumnos inscritos por curso
-5. Inscripción de alumnos (`enrollments`)
-6. Vista del alumno: `CourseCard` con `showActions=false`
+1. Vista del alumno — consumir el curso (`CourseCard` con `showActions=false`)
+2. Lección tipo `link` → el alumno sube certificado/documento probatorio (`lesson_submissions`)
+3. Certificado de finalización del curso (`certificates`)
+4. Soft delete de lección ya implementado — pendiente: UI para ver/restaurar eliminadas
+5. ~~Inscripción de alumnos (`enrollments`)~~ — **implementado** (ver `docs/enrollments.md`)
+6. ~~Recursos descargables por lección (`lesson_resources`)~~ — **implementado**
+7. ~~Comentarios por lección (`lesson_comments`)~~ — **implementado**
+8. Notas privadas del alumno (`lesson_notes`)
+9. Reordenamiento drag-and-drop de módulos y lecciones

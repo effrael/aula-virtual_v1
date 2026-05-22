@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import {
   ImagePlus, Check, Trash2, Upload,
@@ -68,11 +68,17 @@ export function MediaPicker({
   const [loading, setLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const uploadAction = uploadFile.bind(null, bucket);
-  const [uploadState, formAction, pending] = useActionState<UploadState, FormData>(
-    uploadAction,
-    undefined
-  );
+  const [uploadState, setUploadState] = useState<UploadState>(undefined);
+  const [pending, startUpload] = useTransition();
+
+  function handleUpload(file: File) {
+    const fd = new FormData();
+    fd.append("file", file);
+    startUpload(async () => {
+      const result = await uploadFile(bucket, undefined, fd);
+      setUploadState(result);
+    });
+  }
 
   const acceptAttr =
     accept === "image"
@@ -100,7 +106,6 @@ export function MediaPicker({
     if (uploadState?.success && uploadState.publicUrl) {
       toast.success("Archivo subido correctamente.");
       refreshFiles();
-      if (fileInputRef.current) fileInputRef.current.value = "";
     }
     if (uploadState?.message) {
       toast.error(uploadState.message);
@@ -159,15 +164,18 @@ export function MediaPicker({
 
         <div className="flex flex-col gap-4">
           {/* Upload */}
-          <form action={formAction}>
+          <div>
             <input
               ref={fileInputRef}
               type="file"
-              name="file"
               accept={acceptAttr}
               className="hidden"
               onChange={(e) => {
-                if (e.target.files?.[0]) e.target.form?.requestSubmit();
+                const file = e.target.files?.[0];
+                if (file) {
+                  handleUpload(file);
+                  e.target.value = "";
+                }
               }}
             />
             <button
@@ -179,7 +187,7 @@ export function MediaPicker({
               <Upload className="size-4" />
               {pending ? "Subiendo..." : "Subir archivo"}
             </button>
-          </form>
+          </div>
 
           {/* Grid */}
           {loading ? (

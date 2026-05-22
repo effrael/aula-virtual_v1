@@ -114,7 +114,13 @@ export default async function CoursesPage() {
             {/* Grid de cursos */}
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
               {courses.map((course) => (
-                <CourseCard key={course.id} course={course} showActions />
+                <CourseCard
+                  key={course.id}
+                  course={course}
+                  showActions
+                  teachers={teachers}
+                  libraryFiles={libraryFiles}
+                />
               ))}
             </div>
           </>

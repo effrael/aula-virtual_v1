@@ -38,7 +38,7 @@ export function CreateCourseDialog({ teachers, libraryFiles }: Props) {
 
   const [state, action, pending] = useActionState<CreateCourseState, FormData>(
     createCourse,
-    undefined
+    undefined,
   );
 
   useEffect(() => {
@@ -134,8 +134,11 @@ export function CreateCourseDialog({ teachers, libraryFiles }: Props) {
               Docente <span className="text-red-500">*</span>
             </label>
             <Select name="teacher_id" disabled={pending}>
-              <SelectTrigger id="teacher_id">
-                <SelectValue placeholder="Selecciona un docente" />
+              <SelectTrigger id="teacher_id" className="w-full">
+                <SelectValue
+                  placeholder="Selecciona un docente"
+                  className="w-full"
+                />
               </SelectTrigger>
               <SelectContent>
                 {teachers.length === 0 ? (
