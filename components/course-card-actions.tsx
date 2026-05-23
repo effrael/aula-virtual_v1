@@ -24,13 +24,21 @@ import type { StorageFile } from "@/lib/storage-utils";
 
 type Teacher = { id: string; full_name: string };
 
+export type CoursePermissions = {
+  canEdit: boolean;
+  canPublish: boolean;
+  canArchive: boolean;
+  canDelete: boolean;
+};
+
 type Props = {
   course: CourseRow;
   teachers: Teacher[];
   libraryFiles: StorageFile[];
+  permissions: CoursePermissions;
 };
 
-export function CourseCardActions({ course, teachers, libraryFiles }: Props) {
+export function CourseCardActions({ course, teachers, libraryFiles, permissions }: Props) {
   const [pending, startTransition] = useTransition();
   const [editOpen, setEditOpen] = useState(false);
   const { id, status } = course;
@@ -82,31 +90,31 @@ export function CourseCardActions({ course, teachers, libraryFiles }: Props) {
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => setEditOpen(true)}>
-          <Pencil className="size-3.5 mr-2" />
-          Editar
-        </DropdownMenuItem>
-        <DropdownMenuItem disabled>
-          <Users className="size-3.5 mr-2" />
-          Ver alumnos
-        </DropdownMenuItem>
+        {permissions.canEdit && (
+          <DropdownMenuItem onClick={() => setEditOpen(true)}>
+            <Pencil className="size-3.5 mr-2" />
+            Editar
+          </DropdownMenuItem>
+        )}
 
-        <DropdownMenuSeparator />
+        {(permissions.canPublish || permissions.canArchive) && (
+          <DropdownMenuSeparator />
+        )}
 
         {/* Transiciones de estado */}
-        {status === "borrador" && (
+        {permissions.canPublish && status === "borrador" && (
           <DropdownMenuItem onClick={() => handleStatusChange("publicado")}>
             <Globe className="size-3.5 mr-2" />
             Publicar
           </DropdownMenuItem>
         )}
-        {status !== "archivado" && (
+        {permissions.canArchive && status !== "archivado" && (
           <DropdownMenuItem onClick={() => handleStatusChange("archivado")}>
             <Archive className="size-3.5 mr-2" />
             Archivar
           </DropdownMenuItem>
         )}
-        {status === "archivado" && (
+        {permissions.canPublish && status === "archivado" && (
           <>
             <DropdownMenuItem onClick={() => handleStatusChange("publicado")}>
               <Globe className="size-3.5 mr-2" />
@@ -119,15 +127,18 @@ export function CourseCardActions({ course, teachers, libraryFiles }: Props) {
           </>
         )}
 
-        <DropdownMenuSeparator />
-
-        <DropdownMenuItem
-          className="text-red-600 focus:text-red-600"
-          onClick={handleDelete}
-        >
-          <Trash2 className="size-3.5 mr-2" />
-          Eliminar
-        </DropdownMenuItem>
+        {permissions.canDelete && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="text-red-600 focus:text-red-600"
+              onClick={handleDelete}
+            >
+              <Trash2 className="size-3.5 mr-2" />
+              Eliminar
+            </DropdownMenuItem>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
     </>

@@ -10,7 +10,10 @@ export type LessonRow = {
   position: number;
   type: "video" | "link" | "quiz";
   video_id: string | null;
+  hls_url: string | null;
+  video_duration: number | null;
   external_url: string | null;
+  is_certification: boolean;
 };
 
 export type ModuleRow = {
@@ -46,7 +49,9 @@ export async function getCourseWithModules(
         id, title, position, is_active,
         lessons(
           id, title, description, position, type,
-          video_id, external_url, deleted_at
+          video_id, external_url, deleted_at,
+          video:media_videos!video_id(hls_url, duration),
+          quiz:quizzes!lesson_id(is_certification)
         )
       )
     `
@@ -75,7 +80,10 @@ export async function getCourseWithModules(
           position: l.position,
           type: l.type as "video" | "link" | "quiz",
           video_id: l.video_id,
+          hls_url: (l.video as { hls_url: string | null } | null)?.hls_url ?? null,
+          video_duration: (l.video as { duration: number | null } | null)?.duration ?? null,
           external_url: l.external_url,
+          is_certification: (l.quiz as { is_certification: boolean } | null)?.is_certification ?? false,
         }))
         .sort((a, b) => a.position - b.position),
     }))

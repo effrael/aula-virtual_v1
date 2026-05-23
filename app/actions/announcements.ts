@@ -300,9 +300,36 @@ export async function getUnreadAnnouncementsForUser(
   userId: string,
   userRole: string
 ): Promise<UnreadAnnouncement[]> {
+  // superadmin y admin ven todos los anuncios sin filtro de destinatario
+  if (userRole === "superadmin" || userRole === "admin") {
+    const { data: all } = await supabaseAdmin
+      .from("announcements")
+      .select("id, title, type, content, banner_url, banner_link, cta_text, cta_url, created_at")
+      .eq("status", "enviado")
+      .order("created_at", { ascending: false })
+      .limit(20);
+
+    if (!all?.length) return [];
+
+    const { data: reads } = await supabaseAdmin
+      .from("announcement_reads")
+      .select("announcement_id")
+      .eq("user_id", userId)
+      .in("announcement_id", all.map((a) => a.id));
+
+    const readIds = new Set((reads ?? []).map((r) => r.announcement_id));
+    return all
+      .filter((a) => !readIds.has(a.id))
+      .map((a) => ({ ...a, type: a.type as AnnouncementType, banner_url: a.banner_url ?? null, banner_link: a.banner_link ?? null, cta_text: a.cta_text ?? null, cta_url: a.cta_url ?? null }));
+  }
+
+  const roleToTarget: Record<string, string> = {
+    alumno:      "alumnos",
+    docente:     "docentes",
+    colaborador: "docentes",
+  };
   const targetTypes = ["todos"];
-  if (userRole === "alumno") targetTypes.push("alumnos");
-  if (userRole === "docente") targetTypes.push("docentes");
+  if (roleToTarget[userRole]) targetTypes.push(roleToTarget[userRole]);
 
   const { data: announcements } = await supabaseAdmin
     .from("announcements")

@@ -38,12 +38,12 @@ export function NavProjects({
   const pathname = usePathname();
 
   return (
-    <SidebarGroup className="group-data-[collapsible=icon]:hidden">
+    <SidebarGroup>
       <SidebarGroupLabel>Alumno</SidebarGroupLabel>
       <SidebarMenu>
         {projects.map((item) => (
           <SidebarMenuItem key={item.name}>
-            <SidebarMenuButton asChild className={pathname === item.url ? "bg-primary/50 text-primary-foreground" : ""}>
+            <SidebarMenuButton asChild tooltip={item.name} className={pathname === item.url ? "bg-primary/20 text-primary" : ""}>
               <Link href={item.url}>
                 {item.icon}
                 <span>{item.name}</span>

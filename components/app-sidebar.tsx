@@ -96,7 +96,6 @@ export function AppSidebar({ currentUser, org, ...props }: Props) {
     user: {
       name: currentUser.name,
       email: currentUser.email,
-      avatar: "/avatars/shadcn.jpg",
     },
     teams: [
       {

@@ -1,6 +1,5 @@
+import { PageHeader } from "@/components/page-header";
 import { notFound } from "next/navigation";
-import { Separator } from "@/components/ui/separator";
-import { SidebarTrigger } from "@/components/ui/sidebar";
 import { BookOpen } from "lucide-react";
 import { getCourseWithModules } from "@/lib/queries/modules";
 import { getVideos } from "@/lib/queries/videos";
@@ -9,6 +8,9 @@ import { LIBRARY_BUCKET } from "@/lib/storage-utils";
 import { getEnrollments, getStudents } from "@/lib/queries/enrollments";
 import { ModuleList } from "./_components/module-list";
 import { EnrollmentsSection } from "./_components/enrollments-section";
+import { StudentCourseView } from "../_components/student-course-view";
+import { createClient } from "@/lib/supabase/server";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 
 const statusStyles = {
   publicado: "bg-green-100 text-green-700",
@@ -31,41 +33,86 @@ export default async function CourseDetailPage({
 }) {
   const { id } = await params;
 
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const { data: profile } = await supabaseAdmin
+    .from("profiles")
+    .select("role, full_name")
+    .eq("id", user!.id)
+    .single();
+  const role = profile?.role ?? "alumno";
+  const canEdit = role !== "alumno";
+
   const [course, videos, libraryFiles, enrollments, students] =
     await Promise.all([
       getCourseWithModules(id),
-      getVideos(),
-      getStorageFiles(LIBRARY_BUCKET),
-      getEnrollments(id),
-      getStudents(),
+      canEdit ? getVideos() : Promise.resolve([]),
+      canEdit ? getStorageFiles(LIBRARY_BUCKET) : Promise.resolve([]),
+      canEdit ? getEnrollments(id) : Promise.resolve([]),
+      canEdit ? getStudents() : Promise.resolve([]),
     ]);
 
   if (!course) notFound();
+
+  // ── Vista del alumno ────────────────────────────────────────────────────────
+  if (role === "alumno") {
+    // Obtener lecciones ya completadas por el alumno
+    const allLessonIds = course.modules
+      .filter((m) => m.is_active)
+      .flatMap((m) => m.lessons.map((l) => l.id));
+
+    let completedLessonIds: string[] = [];
+    if (allLessonIds.length > 0) {
+      const { data: progressRows } = await supabaseAdmin
+        .from("lesson_progress")
+        .select("lesson_id")
+        .eq("student_id", user!.id)
+        .eq("completed", true)
+        .in("lesson_id", allLessonIds);
+      completedLessonIds = (progressRows ?? []).map((r) => r.lesson_id);
+    }
+
+    return (
+      <>
+        <PageHeader>
+          <a
+            href="/dashboard/courses"
+            className="text-[var(--color-neutral-500)] hover:text-[var(--color-neutral-900)] transition-colors"
+          >
+            Mis cursos
+          </a>
+          <span className="text-[var(--color-neutral-300)]">/</span>
+          <span className="font-semibold text-[var(--color-neutral-900)] truncate max-w-xs">
+            {course.title}
+          </span>
+        </PageHeader>
+        <StudentCourseView
+          course={course}
+          initialCompleted={completedLessonIds}
+          userId={user!.id}
+          userFullName={profile?.full_name ?? "Tú"}
+        />
+      </>
+    );
+  }
 
   // Solo videos listos disponibles para asignar a lecciones
   const readyVideos = videos.filter((v) => v.status === "listo");
 
   return (
     <>
-      <header className="flex h-14 shrink-0 items-center gap-2 border-b border-[var(--color-neutral-200)] px-4">
-        <SidebarTrigger className="-ml-1" />
-        <Separator
-          orientation="vertical"
-          className="mr-2 data-vertical:h-4 data-vertical:self-auto"
-        />
-        <nav className="flex items-center gap-1.5 text-sm">
-          <a
-            href="/dashboard/courses"
-            className="text-[var(--color-neutral-500)] hover:text-[var(--color-neutral-900)] transition-colors"
-          >
-            Cursos
-          </a>
-          <span className="text-[var(--color-neutral-300)]">/</span>
-          <span className="font-semibold text-[var(--color-neutral-900)] truncate max-w-xs">
-            {course.title}
-          </span>
-        </nav>
-      </header>
+      <PageHeader>
+        <a
+          href="/dashboard/courses"
+          className="text-[var(--color-neutral-500)] hover:text-[var(--color-neutral-900)] transition-colors"
+        >
+          Cursos
+        </a>
+        <span className="text-[var(--color-neutral-300)]">/</span>
+        <span className="font-semibold text-[var(--color-neutral-900)] truncate max-w-xs">
+          {course.title}
+        </span>
+      </PageHeader>
 
       <main className="flex flex-col gap-6 p-6 bg-sidebar">
         {/* Cabecera del curso */}
@@ -146,17 +193,20 @@ export default async function CourseDetailPage({
             modules={course.modules}
             videos={readyVideos}
             libraryFiles={libraryFiles}
+            canEdit={canEdit}
           />
         </div>
 
         {/* Sección de inscripciones */}
-        <div>
-          <EnrollmentsSection
-            courseId={course.id}
-            enrollments={enrollments}
-            students={students}
-          />
-        </div>
+        {canEdit && (
+          <div>
+            <EnrollmentsSection
+              courseId={course.id}
+              enrollments={enrollments}
+              students={students}
+            />
+          </div>
+        )}
       </main>
     </>
   );

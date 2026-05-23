@@ -30,6 +30,7 @@ type Props = {
   module: ModuleRow;
   index: number;
   courseId: string;
+  canEdit?: boolean;
   onEdit: () => void;
   onAddLesson: () => void;
   onEditLesson: (lesson: LessonRow) => void;
@@ -44,6 +45,7 @@ export function ModuleItem({
   module,
   index,
   courseId,
+  canEdit = true,
   onEdit,
   onAddLesson,
   onEditLesson,
@@ -108,35 +110,37 @@ export function ModuleItem({
         </span>
 
         {/* Acciones del módulo */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              className="shrink-0 p-1 rounded-md hover:bg-white/20 text-white/70 hover:text-white"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <MoreHorizontal className="size-4" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={onEdit}>
-              <Pencil className="size-3.5 mr-2" />
-              Editar módulo
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleToggleStatus}>
-              {module.is_active ? (
-                <>
-                  <EyeOff className="size-3.5 mr-2" />
-                  Desactivar módulo
-                </>
-              ) : (
-                <>
-                  <Eye className="size-3.5 mr-2" />
-                  Activar módulo
-                </>
-              )}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {canEdit && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="shrink-0 p-1 rounded-md hover:bg-white/20 text-white/70 hover:text-white"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <MoreHorizontal className="size-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={onEdit}>
+                <Pencil className="size-3.5 mr-2" />
+                Editar módulo
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleToggleStatus}>
+                {module.is_active ? (
+                  <>
+                    <EyeOff className="size-3.5 mr-2" />
+                    Desactivar módulo
+                  </>
+                ) : (
+                  <>
+                    <Eye className="size-3.5 mr-2" />
+                    Activar módulo
+                  </>
+                )}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
 
         {/* Colapsar/expandir */}
         <CollapsibleTrigger asChild>
@@ -178,15 +182,17 @@ export function ModuleItem({
         )}
 
         {/* Botón agregar lección */}
-        <div className="px-4 py-3 border-t border-[var(--color-neutral-100)]">
-          <button
-            onClick={onAddLesson}
-            className="flex items-center gap-1.5 text-xs font-medium text-[var(--color-neutral-500)] hover:text-[var(--color-neutral-900)] transition-colors"
-          >
-            <Plus className="size-3.5" />
-            Agregar lección
-          </button>
-        </div>
+        {canEdit && (
+          <div className="px-4 py-3 border-t border-[var(--color-neutral-100)]">
+            <button
+              onClick={onAddLesson}
+              className="flex items-center gap-1.5 text-xs font-medium text-[var(--color-neutral-500)] hover:text-[var(--color-neutral-900)] transition-colors"
+            >
+              <Plus className="size-3.5" />
+              Agregar lección
+            </button>
+          </div>
+        )}
       </CollapsibleContent>
     </Collapsible>
   );

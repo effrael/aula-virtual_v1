@@ -1,0 +1,7 @@
+- [No tocar archivos fuera del scope](feedback_scope.md) — Solo modificar lo que el usuario pidió explícitamente
+- [No usar Agent para explorar archivos](feedback_no_agent_for_files.md) — Usar Read/Glob/Grep directamente, nunca Agent para leer código
+- [Sistema de Anuncios / Comunicación](project_announcements.md) — Qué se implementó en /dashboard/ads y qué falta (email real, cron, sidebar por rol, NavUser dinámico)
+- [Creación de usuarios](project_user_creation.md) — Flujo completo, archivos, errores conocidos, trigger de Supabase maneja profiles
+- [Roles y permisos por página](project_roles_permissions.md) — Redirecciones, sidebar, permisos por acción en courses, patrón canEdit
+- [Sistema de cursos y módulos](project_courses_modules.md) — Tablas, queries, actions, páginas, componentes, tipos de lección
+- [Sistema de autenticación y signup](project_auth.md) — Clientes Supabase, login, signup superadmin, middleware, AuthProvider, store

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { BookOpen, Users } from "lucide-react";
-import { CourseCardActions } from "@/components/course-card-actions";
+import { CourseCardActions, type CoursePermissions } from "@/components/course-card-actions";
 import type { CourseRow } from "@/lib/queries/courses";
 import type { StorageFile } from "@/lib/storage-utils";
 
@@ -20,18 +20,18 @@ const statusLabels: Record<string, string> = {
 
 type Props = {
   course: CourseRow;
-  /** Mostrar el menú de acciones de admin (editar, archivar, eliminar) */
-  showActions?: boolean;
+  permissions: CoursePermissions;
   teachers?: Teacher[];
   libraryFiles?: StorageFile[];
 };
 
 export function CourseCard({
   course,
-  showActions = false,
+  permissions,
   teachers = [],
   libraryFiles = [],
 }: Props) {
+  const hasAnyAction = permissions.canEdit || permissions.canPublish || permissions.canArchive || permissions.canDelete;
   return (
     <div className="relative rounded-xl border border-[var(--color-neutral-200)] bg-white overflow-hidden flex flex-col">
       {/* Stretched link — cubre toda la tarjeta excepto las acciones */}
@@ -65,12 +65,13 @@ export function CourseCard({
             </p>
           </div>
 
-          {showActions && (
+          {hasAnyAction && (
             <div className="relative z-10">
               <CourseCardActions
                 course={course}
                 teachers={teachers}
                 libraryFiles={libraryFiles}
+                permissions={permissions}
               />
             </div>
           )}

@@ -41,9 +41,10 @@ type Props = {
   modules: ModuleRow[];
   videos: VideoRow[];
   libraryFiles: StorageFile[];
+  canEdit?: boolean;
 };
 
-export function ModuleList({ courseId, modules, videos }: Props) {
+export function ModuleList({ courseId, modules, videos, canEdit = true }: Props) {
   // ── Dialog state ───────────────────────────────────────────────────────────
   const [createModuleOpen, setCreateModuleOpen] = useState(false);
   const [editingModule, setEditingModule] = useState<ModuleRow | null>(null);
@@ -67,17 +68,19 @@ export function ModuleList({ courseId, modules, videos }: Props) {
                 Sin módulos todavía
               </p>
               <p className="text-xs text-[var(--color-neutral-400)] mt-0.5">
-                Agrega el primer módulo para organizar las lecciones del curso.
+                {canEdit ? "Agrega el primer módulo para organizar las lecciones del curso." : "Este curso aún no tiene contenido."}
               </p>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCreateModuleOpen(true)}
-            >
-              <Plus className="size-4 mr-1.5" />
-              Agregar módulo
-            </Button>
+            {canEdit && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCreateModuleOpen(true)}
+              >
+                <Plus className="size-4 mr-1.5" />
+                Agregar módulo
+              </Button>
+            )}
           </div>
         ) : (
           <>
@@ -87,6 +90,7 @@ export function ModuleList({ courseId, modules, videos }: Props) {
                 module={mod}
                 index={index}
                 courseId={courseId}
+                canEdit={canEdit}
                 onEdit={() => setEditingModule(mod)}
                 onAddLesson={() => setCreateLessonModuleId(mod.id)}
                 onEditLesson={(lesson) => setEditingLesson(lesson)}
@@ -98,14 +102,16 @@ export function ModuleList({ courseId, modules, videos }: Props) {
               />
             ))}
 
-            <Button
-              variant="outline"
-              className="w-full border-dashed text-[var(--color-neutral-500)]"
-              onClick={() => setCreateModuleOpen(true)}
-            >
-              <Plus className="size-4 mr-1.5" />
-              Agregar módulo
-            </Button>
+            {canEdit && (
+              <Button
+                variant="outline"
+                className="w-full border-dashed text-[var(--color-neutral-500)]"
+                onClick={() => setCreateModuleOpen(true)}
+              >
+                <Plus className="size-4 mr-1.5" />
+                Agregar módulo
+              </Button>
+            )}
           </>
         )}
       </div>

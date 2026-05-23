@@ -1,3 +1,7 @@
+import { PageHeader } from "@/components/page-header";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 import {
   Users,
   GraduationCap,
@@ -9,8 +13,6 @@ import {
   TrendingUp,
   ChartCandlestickIcon,
 } from "lucide-react";
-import { Separator } from "@/components/ui/separator";
-import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
@@ -116,22 +118,24 @@ function initials(name: string) {
     .toUpperCase();
 }
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const { data: profile } = await supabaseAdmin
+    .from("profiles")
+    .select("role")
+    .eq("id", user!.id)
+    .single();
+  const role = profile?.role ?? "alumno";
+
+  if (role === "alumno" || role === "docente") redirect("/dashboard/courses");
   return (
     <>
-      {/* Header */}
-      <header className="flex h-14 shrink-0 items-center gap-2 border-b border-[var(--color-neutral-200)] px-4 bg-sidebar">
-        <SidebarTrigger className="-ml-1" />
-        <Separator
-          orientation="vertical"
-          className="mr-2 data-vertical:h-4 data-vertical:self-auto"
-        />
-        <div>
-          <h1 className="text-sm font-semibold text-[var(--color-neutral-900)]">
-            Dashboard
-          </h1>
-        </div>
-      </header>
+      <PageHeader>
+        <h1 className="text-sm font-semibold text-[var(--color-neutral-900)]">
+          Dashboard
+        </h1>
+      </PageHeader>
 
       <main className="flex flex-col gap-6 p-6">
         {/* Bienvenida */}

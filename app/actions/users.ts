@@ -1,7 +1,14 @@
 "use server";
 
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
+
+const roleToPath: Record<string, string> = {
+  docente: "/dashboard/users/doc",
+  alumno: "/dashboard/users/alumnos",
+  colaborador: "/dashboard/users/colaboradores",
+};
 
 type Role = "docente" | "alumno" | "colaborador";
 
@@ -31,6 +38,7 @@ export async function changeUserRole(
     return { message: "Rol actualizado en auth pero falló en profiles." };
   }
 
+  revalidatePath(roleToPath[newRole] ?? "/dashboard/users");
   return { success: true };
 }
 
@@ -87,6 +95,7 @@ export async function updateUser(
     return { message: "Datos actualizados en auth pero falló en profiles." };
   }
 
+  revalidatePath("/dashboard/users", "layout");
   return { success: true };
 }
 
@@ -110,6 +119,7 @@ export async function deleteUser(
     ban_duration: "876000h",
   });
 
+  revalidatePath("/dashboard/users", "layout");
   return { success: true };
 }
 
@@ -147,14 +157,18 @@ export async function createUser(
   _prev: CreateUserState,
   formData: FormData
 ): Promise<CreateUserState> {
-  const parsed = CreateUserSchema.safeParse({
+  const raw = {
     full_name: formData.get("full_name"),
     email: formData.get("email"),
     password: formData.get("password"),
     role: formData.get("role"),
-  });
+  };
+  console.log("[createUser] raw fields:", raw);
+
+  const parsed = CreateUserSchema.safeParse(raw);
 
   if (!parsed.success) {
+    console.log("[createUser] validation errors:", parsed.error.flatten().fieldErrors);
     return { errors: parsed.error.flatten().fieldErrors };
   }
 
@@ -178,5 +192,6 @@ export async function createUser(
     return { message: errorMessages[error.code ?? ""] ?? "Ocurrió un error inesperado. Intenta nuevamente." };
   }
 
+  revalidatePath(roleToPath[role] ?? "/dashboard/users");
   return { success: true };
 }

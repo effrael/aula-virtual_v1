@@ -28,12 +28,6 @@ export default async function DashboardLayout({
     <SidebarProvider>
       <AppSidebar org={settings} currentUser={{ name: fullName, email: user?.email ?? "", role }} />
       <SidebarInset>
-        {/* Campana flotante — top-right de cada página */}
-        <div className="absolute top-0 right-0 z-20 h-14 flex items-center pr-4 pointer-events-none">
-          <div className="pointer-events-auto">
-            <NotificationsBell />
-          </div>
-        </div>
         {/* Banners de anuncios (urgente/informativo/recordatorio) */}
         <AnnouncementBanner />
         {children}
