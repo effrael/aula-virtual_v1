@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@fontsource-variable/outfit": "^5.2.8",
     "@pdfme/common": "^6.1.2",
     "@pdfme/generator": "^6.1.2",
     "@pdfme/schemas": "^6.1.2",
