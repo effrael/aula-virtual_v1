@@ -2,8 +2,10 @@ import { PageHeader } from "@/components/page-header";
 import { getAnnouncements } from "@/lib/queries/announcements";
 import { getCourses } from "@/lib/queries/courses";
 import { AnnouncementsTable } from "./_components/announcements-table";
+import { requireRole } from "@/lib/auth-guard";
 
 export default async function AdsPage() {
+  await requireRole(["admin", "superadmin", "colaborador", "docente"]);
   const [announcements, courses] = await Promise.all([
     getAnnouncements(),
     getCourses(),

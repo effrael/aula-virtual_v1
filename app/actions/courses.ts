@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { getActionRole } from "@/lib/auth-guard";
 
 // ── Shared result type ───────────────────────────────────────────────────────
 
@@ -34,6 +35,9 @@ export async function createCourse(
   _prev: CreateCourseState,
   formData: FormData
 ): Promise<CreateCourseState> {
+  const role = await getActionRole();
+  if (!role || !["admin", "superadmin"].includes(role)) return { message: "Sin permisos." };
+
   const parsed = CreateCourseSchema.safeParse({
     title: formData.get("title"),
     description: formData.get("description"),
@@ -157,6 +161,9 @@ export async function updateCourseStatus(
 // ── deleteCourse (soft delete) ───────────────────────────────────────────────
 
 export async function deleteCourse(id: string): Promise<CourseActionResult> {
+  const role = await getActionRole();
+  if (!role || !["admin", "superadmin"].includes(role)) return { message: "Sin permisos." };
+
   const supabase = await createClient();
 
   const { error } = await supabase

@@ -11,78 +11,11 @@ import {
   Building2,
   BarChart3,
   TrendingUp,
-  ChartCandlestickIcon,
+  Award,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-
-// ── Datos estáticos (temporales hasta conectar BD) ─────────────────────────
-
-const kpis = [
-  {
-    label: "Total usuarios",
-    value: "248",
-    description: "+12 este mes",
-    icon: Users,
-    color: "bg-blue-50 text-blue-600",
-  },
-  {
-    label: "Alumnos activos",
-    value: "184",
-    description: "74% del total",
-    icon: GraduationCap,
-    color: "bg-green-50 text-green-600",
-  },
-  {
-    label: "Cursos publicados",
-    value: "36",
-    description: "4 en borrador",
-    icon: BookOpen,
-    color: "bg-violet-50 text-violet-600",
-  },
-  {
-    label: "Docentes",
-    value: "21",
-    description: "3 sin cursos asignados",
-    icon: ChartCandlestickIcon,
-    color: "bg-amber-50 text-amber-600",
-  },
-];
-
-const recentUsers = [
-  { name: "Ana Torres", role: "docente", joined: "hace 2 horas" },
-  { name: "Luis Medina", role: "alumno", joined: "hace 5 horas" },
-  { name: "Carmen Ruiz", role: "alumno", joined: "hace 1 día" },
-  { name: "Marco Silva", role: "colaborador", joined: "hace 2 días" },
-  { name: "Rosa Pérez", role: "docente", joined: "hace 3 días" },
-];
-
-const popularCourses = [
-  {
-    name: "Matemáticas avanzadas",
-    teacher: "Ana Torres",
-    enrolled: 48,
-    capacity: 60,
-  },
-  {
-    name: "Inglés intermedio",
-    teacher: "Luis García",
-    enrolled: 35,
-    capacity: 40,
-  },
-  {
-    name: "Historia del Perú",
-    teacher: "Carmen Ruiz",
-    enrolled: 29,
-    capacity: 35,
-  },
-  {
-    name: "Química general",
-    teacher: "Marco Silva",
-    enrolled: 22,
-    capacity: 30,
-  },
-];
+import { getDashboardStats } from "@/lib/queries/dashboard";
 
 const roleStyles: Record<string, string> = {
   superadmin: "bg-blue-100 text-blue-700",
@@ -101,13 +34,11 @@ const roleLabels: Record<string, string> = {
 };
 
 const quickActions = [
-  { label: "Nuevo usuario", icon: UserPlus, variant: "default" as const },
-  { label: "Nuevo curso", icon: BookPlus, variant: "outline" as const },
-  { label: "Organización", icon: Building2, variant: "outline" as const },
-  { label: "Ver reportes", icon: BarChart3, variant: "outline" as const },
+  { label: "Nuevo usuario", icon: UserPlus, variant: "default" as const, href: "/dashboard/users" },
+  { label: "Nuevo curso", icon: BookPlus, variant: "outline" as const, href: "/dashboard/courses" },
+  { label: "Organización", icon: Building2, variant: "outline" as const, href: "/dashboard/settings/organization" },
+  { label: "Certificados", icon: Award, variant: "outline" as const, href: "/dashboard/certificates" },
 ];
-
-// ── Componentes ────────────────────────────────────────────────────────────
 
 function initials(name: string) {
   return name
@@ -116,6 +47,16 @@ function initials(name: string) {
     .slice(0, 2)
     .join("")
     .toUpperCase();
+}
+
+function timeAgo(dateStr: string) {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `hace ${mins} min`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `hace ${hours}h`;
+  const days = Math.floor(hours / 24);
+  return `hace ${days}d`;
 }
 
 export default async function DashboardPage() {
@@ -129,6 +70,40 @@ export default async function DashboardPage() {
   const role = profile?.role ?? "alumno";
 
   if (role === "alumno" || role === "docente") redirect("/dashboard/courses");
+
+  const stats = await getDashboardStats();
+
+  const kpis = [
+    {
+      label: "Total alumnos",
+      value: String(stats.totalAlumnos),
+      description: `${stats.cursosBorrador} cursos en borrador`,
+      icon: GraduationCap,
+      color: "bg-green-50 text-green-600",
+    },
+    {
+      label: "Docentes",
+      value: String(stats.totalDocentes),
+      description: "",
+      icon: Users,
+      color: "bg-blue-50 text-blue-600",
+    },
+    {
+      label: "Cursos publicados",
+      value: String(stats.cursosPublicados),
+      description: `${stats.cursosBorrador} en borrador`,
+      icon: BookOpen,
+      color: "bg-violet-50 text-violet-600",
+    },
+    {
+      label: "Certificados emitidos",
+      value: String(stats.certificadosEmitidos),
+      description: "",
+      icon: Award,
+      color: "bg-amber-50 text-amber-600",
+    },
+  ];
+
   return (
     <>
       <PageHeader>
@@ -175,9 +150,11 @@ export default async function DashboardPage() {
                 <p className="text-3xl font-bold text-[var(--color-neutral-900)]">
                   {kpi.value}
                 </p>
-                <p className="text-xs text-[var(--color-neutral-400)] mt-0.5">
-                  {kpi.description}
-                </p>
+                {kpi.description && (
+                  <p className="text-xs text-[var(--color-neutral-400)] mt-0.5">
+                    {kpi.description}
+                  </p>
+                )}
               </div>
             </div>
           ))}
@@ -192,30 +169,36 @@ export default async function DashboardPage() {
                 Usuarios recientes
               </h3>
               <Button variant={"link"}>
-                <Link href="dashboard/users">Ver todos</Link>
+                <Link href="/dashboard/users">Ver todos</Link>
               </Button>
             </div>
             <ul className="divide-y divide-[var(--color-neutral-100)]">
-              {recentUsers.map((u) => (
-                <li key={u.name} className="flex items-center gap-3 px-5 py-3">
-                  <div className="size-8 rounded-full bg-[var(--color-primary-soft)] flex items-center justify-center text-xs font-semibold text-[var(--color-primary)] shrink-0">
-                    {initials(u.name)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-[var(--color-neutral-900)] truncate">
-                      {u.name}
-                    </p>
-                    <p className="text-xs text-[var(--color-neutral-400)]">
-                      {u.joined}
-                    </p>
-                  </div>
-                  <span
-                    className={`text-xs font-medium px-2 py-0.5 rounded-full ${roleStyles[u.role]}`}
-                  >
-                    {roleLabels[u.role]}
-                  </span>
+              {stats.recentUsers.length === 0 ? (
+                <li className="px-5 py-8 text-center text-sm text-[var(--color-neutral-400)]">
+                  No hay usuarios registrados.
                 </li>
-              ))}
+              ) : (
+                stats.recentUsers.map((u) => (
+                  <li key={u.id} className="flex items-center gap-3 px-5 py-3">
+                    <div className="size-8 rounded-full bg-[var(--color-primary-soft)] flex items-center justify-center text-xs font-semibold text-[var(--color-primary)] shrink-0">
+                      {initials(u.full_name)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-[var(--color-neutral-900)] truncate">
+                        {u.full_name}
+                      </p>
+                      <p className="text-xs text-[var(--color-neutral-400)]">
+                        {timeAgo(u.created_at)}
+                      </p>
+                    </div>
+                    <span
+                      className={`text-xs font-medium px-2 py-0.5 rounded-full ${roleStyles[u.role] ?? roleStyles.alumno}`}
+                    >
+                      {roleLabels[u.role] ?? u.role}
+                    </span>
+                  </li>
+                ))
+              )}
             </ul>
           </div>
 
@@ -225,47 +208,38 @@ export default async function DashboardPage() {
               <h3 className="text-sm font-semibold text-[var(--color-neutral-900)]">
                 Cursos más inscritos
               </h3>
-              <button className="text-xs text-[var(--color-primary)] hover:underline">
-                Ver catálogo
-              </button>
+              <Button variant={"link"}>
+                <Link href="/dashboard/courses">Ver catálogo</Link>
+              </Button>
             </div>
             <ul className="divide-y divide-[var(--color-neutral-100)]">
-              {popularCourses.map((course, i) => {
-                const pct = Math.round(
-                  (course.enrolled / course.capacity) * 100,
-                );
-                return (
+              {stats.popularCourses.length === 0 ? (
+                <li className="px-5 py-8 text-center text-sm text-[var(--color-neutral-400)]">
+                  No hay cursos publicados.
+                </li>
+              ) : (
+                stats.popularCourses.map((course, i) => (
                   <li
-                    key={course.name}
-                    className="px-5 py-3 flex flex-col gap-1.5"
+                    key={course.title}
+                    className="px-5 py-3 flex items-center gap-3"
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="text-xs font-bold text-[var(--color-neutral-300)] w-4 shrink-0">
-                          {i + 1}
-                        </span>
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-[var(--color-neutral-900)] truncate">
-                            {course.name}
-                          </p>
-                          <p className="text-xs text-[var(--color-neutral-400)]">
-                            {course.teacher}
-                          </p>
-                        </div>
-                      </div>
-                      <span className="text-xs text-[var(--color-neutral-500)] shrink-0 ml-2">
-                        {course.enrolled}/{course.capacity}
-                      </span>
+                    <span className="text-xs font-bold text-[var(--color-neutral-300)] w-4 shrink-0">
+                      {i + 1}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-[var(--color-neutral-900)] truncate">
+                        {course.title}
+                      </p>
+                      <p className="text-xs text-[var(--color-neutral-400)]">
+                        {course.teacher}
+                      </p>
                     </div>
-                    <div className="ml-6 h-1.5 w-full rounded-full bg-[var(--color-neutral-100)]">
-                      <div
-                        className="h-1.5 rounded-full bg-[var(--color-primary)]"
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
+                    <span className="text-xs text-[var(--color-neutral-500)] shrink-0 ml-2">
+                      {course.enrolled} inscritos
+                    </span>
                   </li>
-                );
-              })}
+                ))
+              )}
             </ul>
           </div>
         </div>
@@ -280,14 +254,17 @@ export default async function DashboardPage() {
               <Button
                 key={action.label}
                 variant={action.variant}
+                asChild
                 className={`flex flex-col h-auto py-4 gap-2 ${
                   action.variant === "default"
                     ? "bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white"
                     : "border-[var(--color-neutral-200)] text-[var(--color-neutral-700)] hover:bg-[var(--color-neutral-50)]"
                 }`}
               >
-                <action.icon className="size-5" />
-                <span className="text-xs font-medium">{action.label}</span>
+                <Link href={action.href}>
+                  <action.icon className="size-5" />
+                  <span className="text-xs font-medium">{action.label}</span>
+                </Link>
               </Button>
             ))}
           </div>

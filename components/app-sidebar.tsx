@@ -22,6 +22,7 @@ import {
   Mic,
   Library,
   BadgeCheckIcon,
+  LayoutDashboard,
 } from "lucide-react";
 import type { SettingsRow } from "@/lib/queries/settings";
 
@@ -30,15 +31,16 @@ type Props = React.ComponentProps<typeof Sidebar> & {
   currentUser: { name: string; email: string; role: string };
 };
 
+const NAV_DASHBOARD = {
+  title: "Dashboard",
+  url: "/dashboard",
+  icon: <LayoutDashboard />,
+};
+
 const NAV_USUARIOS = {
   title: "Usuarios",
   url: "/dashboard/users",
   icon: <User />,
-  items: [
-    { title: "Docentes", url: "/dashboard/users/doc" },
-    { title: "Alumnos", url: "/dashboard/users/alumnos" },
-    { title: "Colaboradores", url: "/dashboard/users/colaboradores" },
-  ],
 };
 
 const NAV_CURSOS_FULL = {
@@ -80,11 +82,11 @@ function getNavByRole(role: string) {
   switch (role) {
     case "superadmin":
     case "admin":
-      return [NAV_USUARIOS, NAV_CURSOS_FULL, NAV_ARCHIVOS, NAV_CONFIGURACION, NAV_COMUNICACION];
+      return [NAV_DASHBOARD, NAV_CURSOS_FULL,NAV_USUARIOS, NAV_CONFIGURACION, NAV_ARCHIVOS , NAV_COMUNICACION];
     case "docente":
       return [NAV_CURSOS_BASICO, NAV_ARCHIVOS, NAV_COMUNICACION];
     case "colaborador":
-      return [NAV_USUARIOS, NAV_CURSOS_FULL, NAV_ARCHIVOS, NAV_COMUNICACION];
+      return [NAV_DASHBOARD, NAV_USUARIOS, NAV_CURSOS_FULL, NAV_ARCHIVOS, NAV_COMUNICACION];
     case "alumno":
     default:
       return [NAV_CURSOS_BASICO];
@@ -111,7 +113,7 @@ export function AppSidebar({ currentUser, org, ...props }: Props) {
       { name: "Mis cursos", url: "/dashboard/courses", icon: <FrameIcon /> },
       { name: "Evaluaciones", url: "/dashboard/evaluaciones", icon: <PieChartIcon /> },
       { name: "Certificados", url: "/dashboard/certificates", icon: <MapIcon /> },
-      { name: "Verificar Certificado", url: "/dashboard/certificates/verify", icon: <BadgeCheckIcon /> },
+      { name: "Verificar Certificado", url: "/verify", icon: <BadgeCheckIcon /> },
     ],
   };
   console.log(currentUser)

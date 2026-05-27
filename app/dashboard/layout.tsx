@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { AppSidebar } from "@/components/app-sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { NotificationsBell } from "@/components/notifications-bell";
 import { AnnouncementBanner } from "@/components/announcement-banner";
 import { getSettings } from "@/lib/queries/settings";
@@ -25,13 +26,15 @@ export default async function DashboardLayout({
   const role = profile?.role ?? "alumno";
 
   return (
-    <SidebarProvider>
-      <AppSidebar org={settings} currentUser={{ name: fullName, email: user?.email ?? "", role }} />
-      <SidebarInset>
-        {/* Banners de anuncios (urgente/informativo/recordatorio) */}
-        <AnnouncementBanner />
-        {children}
-      </SidebarInset>
-    </SidebarProvider>
+    <TooltipProvider>
+      <SidebarProvider>
+        <AppSidebar org={settings} currentUser={{ name: fullName, email: user?.email ?? "", role }} />
+        <SidebarInset>
+          {/* Banners de anuncios (urgente/informativo/recordatorio) */}
+          <AnnouncementBanner />
+          {children}
+        </SidebarInset>
+      </SidebarProvider>
+    </TooltipProvider>
   );
 }

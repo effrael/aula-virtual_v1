@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import type { AnnouncementType } from "@/lib/queries/announcements";
+import { getActionRole } from "@/lib/auth-guard";
 
 const REVALIDATE = "/dashboard/ads";
 
@@ -51,6 +52,9 @@ export async function saveAnnouncement(
   _prev: AnnouncementFormState,
   formData: FormData
 ): Promise<AnnouncementFormState> {
+  const actionRole = await getActionRole();
+  if (!actionRole || actionRole === "alumno") return { message: "Sin permisos." };
+
   const id = formData.get("id") as string | null;
 
   const parsed = AnnouncementSchema.safeParse({
@@ -160,6 +164,9 @@ export async function saveAnnouncement(
 export async function sendAnnouncement(
   id: string
 ): Promise<{ success?: boolean; message?: string }> {
+  const actionRole = await getActionRole();
+  if (!actionRole || actionRole === "alumno") return { message: "Sin permisos." };
+
   const { error } = await supabaseAdmin
     .from("announcements")
     .update({ status: "enviado", sent_at: new Date().toISOString(), updated_at: new Date().toISOString() })
@@ -179,6 +186,9 @@ export async function sendAnnouncement(
 export async function archiveAnnouncement(
   id: string
 ): Promise<{ success?: boolean; message?: string }> {
+  const actionRole = await getActionRole();
+  if (!actionRole || actionRole === "alumno") return { message: "Sin permisos." };
+
   const { error } = await supabaseAdmin
     .from("announcements")
     .update({ status: "archivado", updated_at: new Date().toISOString() })
@@ -198,6 +208,9 @@ export async function archiveAnnouncement(
 export async function deleteAnnouncement(
   id: string
 ): Promise<{ success?: boolean; message?: string }> {
+  const actionRole = await getActionRole();
+  if (!actionRole || actionRole === "alumno") return { message: "Sin permisos." };
+
   const { error } = await supabaseAdmin.from("announcements").delete().eq("id", id);
 
   if (error) {
@@ -214,6 +227,9 @@ export async function deleteAnnouncement(
 export async function duplicateAnnouncement(
   id: string
 ): Promise<{ success?: boolean; message?: string }> {
+  const actionRole = await getActionRole();
+  if (!actionRole || actionRole === "alumno") return { message: "Sin permisos." };
+
   const { data: original, error: fetchError } = await supabaseAdmin
     .from("announcements")
     .select(

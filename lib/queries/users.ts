@@ -1,5 +1,15 @@
 import { createClient } from "@/lib/supabase/server";
-import type { UserRow } from "@/app/dashboard/users/_components/users-table";
+
+export type UserRole = "docente" | "alumno" | "colaborador";
+
+export type UserRow = {
+  id: string;
+  full_name: string;
+  email: string;
+  joined: string;
+  status: "activo" | "inactivo";
+  role: UserRole;
+};
 
 function formatDate(dateStr: string): string {
   return new Intl.DateTimeFormat("es-PE", {
@@ -9,9 +19,7 @@ function formatDate(dateStr: string): string {
   }).format(new Date(dateStr));
 }
 
-export async function getUsersByRole(
-  role: "docente" | "alumno" | "colaborador"
-): Promise<UserRow[]> {
+export async function getUsersByRole(role: UserRole): Promise<UserRow[]> {
   const supabase = await createClient();
 
   const { data, error } = await supabase.rpc("get_users_by_role", {
@@ -24,18 +32,24 @@ export async function getUsersByRole(
   }
 
   return data.map(
-    (u: {
-      id: string;
-      full_name: string;
-      email: string;
-      status: string;
-      created_at: string;
-    }) => ({
+    (u: { id: string; full_name: string; email: string; status: string; created_at: string }) => ({
       id: u.id,
       full_name: u.full_name,
       email: u.email,
       status: u.status as "activo" | "inactivo",
       joined: formatDate(u.created_at),
+      role,
     })
+  );
+}
+
+export async function getAllUsers(): Promise<UserRow[]> {
+  const [docentes, alumnos, colaboradores] = await Promise.all([
+    getUsersByRole("docente"),
+    getUsersByRole("alumno"),
+    getUsersByRole("colaborador"),
+  ]);
+  return [...docentes, ...alumnos, ...colaboradores].sort((a, b) =>
+    a.full_name.localeCompare(b.full_name)
   );
 }

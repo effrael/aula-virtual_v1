@@ -1,7 +1,9 @@
 import { getGoogleMeetIntegration } from "@/lib/queries/integrations";
 import { GoogleMeetForm } from "./_components/google-meet-form";
+import { requireRole } from "@/lib/auth-guard";
 
 export default async function IntegrationsPage() {
+  await requireRole(["admin", "superadmin"]);
   const googleMeet = await getGoogleMeetIntegration();
 
   return (

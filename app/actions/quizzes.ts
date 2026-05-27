@@ -3,6 +3,7 @@
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { generateCertificate } from "@/app/actions/certificates";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -498,6 +499,30 @@ export async function submitAttempt(
       { lesson_id: lessonId, student_id: user.id, completed: true, completed_at: new Date().toISOString() },
       { onConflict: "lesson_id,student_id" }
     );
+
+    // ── Generar certificado si es quiz de certificación ────────────────────
+    try {
+      const { data: quizMeta } = await supabaseAdmin
+        .from("quizzes")
+        .select("is_certification")
+        .eq("id", attempt.quiz_id)
+        .single();
+
+      if (quizMeta?.is_certification) {
+        const { data: lessonData } = await supabaseAdmin
+          .from("lessons")
+          .select("module:modules!module_id(course_id)")
+          .eq("id", lessonId)
+          .single();
+
+        const courseId = (lessonData?.module as any)?.course_id;
+        if (courseId) {
+          await generateCertificate(user.id, courseId, score);
+        }
+      }
+    } catch (err) {
+      console.error("[submitAttempt] certificate generation error:", err);
+    }
   }
 
   return { score, passed };

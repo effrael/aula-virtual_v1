@@ -2,8 +2,10 @@ import { getSettings } from "@/lib/queries/settings";
 import { getStorageFiles } from "@/lib/queries/storage";
 import { LIBRARY_BUCKET } from "@/lib/storage-utils";
 import { OrganizationForm } from "./_components/organization-form";
+import { requireRole } from "@/lib/auth-guard";
 
 export default async function OrganizationPage() {
+  await requireRole(["admin", "superadmin"]);
   const [settings, libraryFiles] = await Promise.all([
     getSettings(),
     getStorageFiles(LIBRARY_BUCKET),

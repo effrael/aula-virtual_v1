@@ -3,12 +3,11 @@
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { getActionRole } from "@/lib/auth-guard";
 
-const roleToPath: Record<string, string> = {
-  docente: "/dashboard/users/doc",
-  alumno: "/dashboard/users/alumnos",
-  colaborador: "/dashboard/users/colaboradores",
-};
+const ALLOWED_USER_MGMT = ["admin", "superadmin", "colaborador"];
+
+const USERS_PATH = "/dashboard/users";
 
 type Role = "docente" | "alumno" | "colaborador";
 
@@ -18,6 +17,9 @@ export async function changeUserRole(
   userId: string,
   newRole: Role
 ): Promise<{ success?: boolean; message?: string }> {
+  const role = await getActionRole();
+  if (!role || !ALLOWED_USER_MGMT.includes(role)) return { message: "Sin permisos." };
+
   const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(
     userId,
     { user_metadata: { role: newRole } }
@@ -38,7 +40,7 @@ export async function changeUserRole(
     return { message: "Rol actualizado en auth pero falló en profiles." };
   }
 
-  revalidatePath(roleToPath[newRole] ?? "/dashboard/users");
+  revalidatePath(USERS_PATH);
   return { success: true };
 }
 
@@ -61,6 +63,9 @@ export async function updateUser(
   _prev: UpdateUserState,
   formData: FormData
 ): Promise<UpdateUserState> {
+  const role = await getActionRole();
+  if (!role || !ALLOWED_USER_MGMT.includes(role)) return { message: "Sin permisos." };
+
   const parsed = UpdateUserSchema.safeParse({
     full_name: formData.get("full_name"),
     email: formData.get("email"),
@@ -104,6 +109,9 @@ export async function updateUser(
 export async function deleteUser(
   userId: string
 ): Promise<{ success?: boolean; message?: string }> {
+  const role = await getActionRole();
+  if (!role || !ALLOWED_USER_MGMT.includes(role)) return { message: "Sin permisos." };
+
   const { error: profileError } = await supabaseAdmin
     .from("profiles")
     .update({ deleted_at: new Date().toISOString(), status: "inactivo" })
@@ -157,6 +165,9 @@ export async function createUser(
   _prev: CreateUserState,
   formData: FormData
 ): Promise<CreateUserState> {
+  const callerRole = await getActionRole();
+  if (!callerRole || !ALLOWED_USER_MGMT.includes(callerRole)) return { message: "Sin permisos." };
+
   const raw = {
     full_name: formData.get("full_name"),
     email: formData.get("email"),
@@ -192,6 +203,128 @@ export async function createUser(
     return { message: errorMessages[error.code ?? ""] ?? "Ocurrió un error inesperado. Intenta nuevamente." };
   }
 
-  revalidatePath(roleToPath[role] ?? "/dashboard/users");
+  revalidatePath(USERS_PATH);
   return { success: true };
+}
+
+// ── Desactivar usuario activo ─────────────────────────────────────────────
+
+export async function deactivateUser(
+  userId: string
+): Promise<{ success?: boolean; message?: string }> {
+  const currentRole = await getActionRole();
+  if (!currentRole || !ALLOWED_USER_MGMT.includes(currentRole)) return { message: "Sin permisos." };
+
+  const { error: profileError } = await supabaseAdmin
+    .from("profiles")
+    .update({ status: "inactivo" })
+    .eq("id", userId);
+
+  if (profileError) {
+    console.error("[deactivateUser] profile:", profileError.message);
+    return { message: "No se pudo desactivar el usuario. Intenta nuevamente." };
+  }
+
+  await supabaseAdmin.auth.admin.updateUserById(userId, {
+    ban_duration: "876000h",
+  });
+
+  revalidatePath(USERS_PATH, "layout");
+  return { success: true };
+}
+
+// ── Activar usuario inactivo ──────────────────────────────────────────────
+
+export async function activateUser(
+  userId: string
+): Promise<{ success?: boolean; message?: string }> {
+  const currentRole = await getActionRole();
+  if (!currentRole || !ALLOWED_USER_MGMT.includes(currentRole)) return { message: "Sin permisos." };
+
+  const { error: profileError } = await supabaseAdmin
+    .from("profiles")
+    .update({ status: "activo", deleted_at: null })
+    .eq("id", userId);
+
+  if (profileError) {
+    console.error("[activateUser] profile:", profileError.message);
+    return { message: "No se pudo activar el usuario. Intenta nuevamente." };
+  }
+
+  await supabaseAdmin.auth.admin.updateUserById(userId, {
+    ban_duration: "none",
+  });
+
+  revalidatePath("/dashboard/users", "layout");
+  return { success: true };
+}
+
+// ── Importar usuarios desde CSV ───────────────────────────────────────────
+
+export type ImportResult = {
+  total: number;
+  created: number;
+  failed: { row: number; email: string; reason: string }[];
+};
+
+export async function importUsers(
+  formData: FormData
+): Promise<{ success?: boolean; message?: string; result?: ImportResult }> {
+  const currentRole = await getActionRole();
+  if (!currentRole || !ALLOWED_USER_MGMT.includes(currentRole)) return { message: "Sin permisos." };
+
+  const file = formData.get("file") as File | null;
+  if (!file) return { message: "No se recibió ningún archivo." };
+
+  const text = await file.text();
+  const lines = text.split(/\r?\n/).filter((l) => l.trim());
+  if (lines.length < 2) return { message: "El archivo está vacío o solo tiene el encabezado." };
+
+  // Detectar delimitador automáticamente desde el encabezado
+  const header = lines[0];
+  const delimiter = header.includes("\t") ? "\t" : header.includes(";") ? ";" : ",";
+
+  const rows = lines.slice(1); // saltar encabezado
+  const result: ImportResult = { total: rows.length, created: 0, failed: [] };
+
+  for (let i = 0; i < rows.length; i++) {
+    const cols = rows[i].split(delimiter).map((c) => c.trim().replace(/^"|"$/g, ""));
+    const [full_name, email, password, role] = cols;
+    const rowNum = i + 2;
+
+    if (!full_name || !email || !password || !role) {
+      result.failed.push({ row: rowNum, email: email ?? "—", reason: "Faltan campos obligatorios." });
+      continue;
+    }
+
+    if (!["docente", "alumno", "colaborador"].includes(role)) {
+      result.failed.push({ row: rowNum, email, reason: `Rol inválido: "${role}".` });
+      continue;
+    }
+
+    if (password.length < 8) {
+      result.failed.push({ row: rowNum, email, reason: "La contraseña debe tener al menos 8 caracteres." });
+      continue;
+    }
+
+    const { error } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { full_name, role },
+    });
+
+    if (error) {
+      const reason =
+        error.code === "email_exists" || error.code === "user_already_exists"
+          ? "El correo ya está registrado."
+          : error.message;
+      result.failed.push({ row: rowNum, email, reason });
+    } else {
+      result.created++;
+    }
+  }
+
+  revalidatePath(USERS_PATH);
+  return { success: true, result };
 }

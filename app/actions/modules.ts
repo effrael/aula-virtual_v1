@@ -3,6 +3,13 @@
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { getActionRole } from "@/lib/auth-guard";
+
+async function requireNotAlumno(): Promise<{ message: string } | null> {
+  const role = await getActionRole();
+  if (!role || role === "alumno") return { message: "Sin permisos." };
+  return null;
+}
 
 // ── Shared ────────────────────────────────────────────────────────────────────
 
@@ -29,6 +36,9 @@ export async function createModule(
   _prev: CreateModuleState,
   formData: FormData
 ): Promise<CreateModuleState> {
+  const denied = await requireNotAlumno();
+  if (denied) return denied;
+
   const parsed = CreateModuleSchema.safeParse({
     course_id: formData.get("course_id"),
     title: formData.get("title"),
@@ -77,6 +87,9 @@ export async function updateModule(
   _prev: UpdateModuleState,
   formData: FormData
 ): Promise<UpdateModuleState> {
+  const denied = await requireNotAlumno();
+  if (denied) return denied;
+
   const parsed = UpdateModuleSchema.safeParse({
     id: formData.get("id"),
     course_id: formData.get("course_id"),
@@ -109,6 +122,9 @@ export async function toggleModuleStatus(
   courseId: string,
   isActive: boolean
 ): Promise<ModuleActionResult> {
+  const denied = await requireNotAlumno();
+  if (denied) return denied;
+
   const { error } = await supabaseAdmin
     .from("modules")
     .update({ is_active: isActive })
@@ -129,6 +145,9 @@ export async function deleteModule(
   id: string,
   courseId: string
 ): Promise<ModuleActionResult> {
+  const denied = await requireNotAlumno();
+  if (denied) return denied;
+
   const supabase = supabaseAdmin;
 
   const { error } = await supabase.from("modules").delete().eq("id", id);
@@ -186,6 +205,9 @@ export async function createLesson(
   _prev: CreateLessonState,
   formData: FormData
 ): Promise<CreateLessonState> {
+  const denied = await requireNotAlumno();
+  if (denied) return denied;
+
   const type = formData.get("type") as "video" | "link" | "quiz";
 
   const parsed = CreateLessonSchema.safeParse({
@@ -288,6 +310,9 @@ export async function updateLesson(
   _prev: UpdateLessonState,
   formData: FormData
 ): Promise<UpdateLessonState> {
+  const denied = await requireNotAlumno();
+  if (denied) return denied;
+
   const type = formData.get("type") as "video" | "link" | "quiz";
 
   const parsed = UpdateLessonSchema.safeParse({
@@ -335,6 +360,9 @@ export async function deleteLesson(
   id: string,
   courseId: string
 ): Promise<ModuleActionResult> {
+  const denied = await requireNotAlumno();
+  if (denied) return denied;
+
   const supabase = supabaseAdmin;
 
   const { error } = await supabase

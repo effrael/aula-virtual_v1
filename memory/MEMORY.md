@@ -5,3 +5,5 @@
 - [Roles y permisos por página](project_roles_permissions.md) — Redirecciones, sidebar, permisos por acción en courses, patrón canEdit
 - [Sistema de cursos y módulos](project_courses_modules.md) — Tablas, queries, actions, páginas, componentes, tipos de lección
 - [Sistema de autenticación y signup](project_auth.md) — Clientes Supabase, login, signup superadmin, middleware, AuthProvider, store
+- [Tareas mayo 2026](project_tareas_mayo2026.md) — Protección rutas por rol, activar usuario, certificados @pdfme, dashboard real, evaluaciones alumno
+- [Certificados detalle completo](project_certificados_detalle.md) — @pdfme v6, designer, campos dinámicos, QR con bwip-js, emisión manual/auto, verificación pública

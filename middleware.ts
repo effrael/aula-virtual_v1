@@ -28,6 +28,11 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // Ruta pública de verificación de certificados — no requiere auth
+  if (pathname.startsWith("/verify")) {
+    return response;
+  }
+
   const isAuthRoute =
     pathname === "/" ||
     pathname.startsWith("/login") ||
