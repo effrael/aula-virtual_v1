@@ -15,7 +15,7 @@ export default async function DesignerPage({
 
   const { data: template, error } = await supabaseAdmin
     .from("certificate_templates")
-    .select("id, name, pdf_url, pdfme_template")
+    .select("id, name, pdf_url, pdfme_template, custom_fonts")
     .eq("id", id)
     .is("deleted_at", null)
     .single();
@@ -35,6 +35,7 @@ export default async function DesignerPage({
           templateId={template.id}
           pdfUrl={template.pdf_url}
           pdfmeTemplate={template.pdfme_template as Record<string, unknown>}
+          customFonts={(template.custom_fonts as any[]) ?? []}
         />
       </main>
     </>

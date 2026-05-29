@@ -11,6 +11,7 @@ export type EnrollmentRow = {
 export type StudentRow = {
   id: string;
   full_name: string;
+  apellidos: string | null;
 };
 
 export async function getEnrollments(courseId: string): Promise<EnrollmentRow[]> {
@@ -43,7 +44,7 @@ export async function getEnrollments(courseId: string): Promise<EnrollmentRow[]>
 export async function getStudents(): Promise<StudentRow[]> {
   const { data, error } = await supabaseAdmin
     .from("profiles")
-    .select("id, full_name")
+    .select("id, full_name, apellidos")
     .eq("role", "alumno")
     .eq("status", "activo")
     .is("deleted_at", null)

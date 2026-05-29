@@ -101,11 +101,7 @@ export default function LoginPage() {
               </div>
             )}
 
-            {state?.message && (
-              <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                {state.message}
-              </div>
-            )}
+           
 
             <form action={action} className="mt-8 flex flex-col gap-5">
               {/* Email */}
@@ -142,6 +138,7 @@ export default function LoginPage() {
                     placeholder="••••••••"
                     className="pr-10"
                   />
+                  
                   <button
                     type="button"
                     onClick={() => setShowPassword((v) => !v)}
@@ -156,7 +153,13 @@ export default function LoginPage() {
                       <Eye className="size-4" />
                     )}
                   </button>
+                  
                 </div>
+                 {state?.message && (
+              <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {state.message}
+              </div>
+            )}
                 <div className="flex justify-end">
                   <Link
                     href="/recuperar-contrasena"

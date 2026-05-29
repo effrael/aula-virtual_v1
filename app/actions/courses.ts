@@ -158,6 +158,36 @@ export async function updateCourseStatus(
   return { success: true };
 }
 
+// ── updateCourseCertificate ──────────────────────────────────────────────────
+
+export async function updateCourseCertificate(
+  courseId: string,
+  templateId: string | null,
+  description: string | null
+): Promise<CourseActionResult> {
+  const role = await getActionRole();
+  if (!role || role === "alumno") return { message: "Sin permisos." };
+
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("courses")
+    .update({
+      certificate_template_id: templateId || null,
+      certificate_description: description || null,
+    })
+    .eq("id", courseId)
+    .is("deleted_at", null);
+
+  if (error) {
+    console.error("[updateCourseCertificate]", error.message);
+    return { message: "No se pudo guardar la configuración de certificado." };
+  }
+
+  revalidatePath(`/dashboard/courses/${courseId}`);
+  return { success: true };
+}
+
 // ── deleteCourse (soft delete) ───────────────────────────────────────────────
 
 export async function deleteCourse(id: string): Promise<CourseActionResult> {

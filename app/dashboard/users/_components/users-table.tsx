@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  MoreHorizontal, Pencil, Trash2, ArrowLeftRight, UserCheck, UserX,
+  MoreHorizontal, Pencil, Trash2, ArrowLeftRight, UserCheck, UserX, KeyRound,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,7 +16,7 @@ import {
 import { ChangeRoleModal } from "./change-role-modal";
 import { EditUserModal } from "./edit-user-modal";
 import { DeleteUserConfirm } from "./delete-user-confirm";
-import { activateUser, deactivateUser } from "@/app/actions/users";
+import { activateUser, deactivateUser, sendPasswordReset } from "@/app/actions/users";
 import { toast } from "sonner";
 import type { UserRow, UserRole } from "@/lib/queries/users";
 
@@ -33,7 +33,7 @@ function initials(name: string) {
 }
 
 type ChangeRoleState = { userId: string; userName: string; currentRole: UserRole } | null;
-type EditState       = { userId: string; fullName: string; email: string } | null;
+type EditState       = { userId: string; fullName: string; apellidos: string; dni: string; email: string } | null;
 type DeleteState     = { userId: string; userName: string } | null;
 
 interface UsersTableProps {
@@ -46,6 +46,18 @@ export function UsersTable({ data }: UsersTableProps) {
   const [editModal, setEditModal]             = useState<EditState>(null);
   const [deleteModal, setDeleteModal]         = useState<DeleteState>(null);
   const [loadingId, setLoadingId]             = useState<string | null>(null);
+  const [resetLoadingId, setResetLoadingId]   = useState<string | null>(null);
+
+  async function handleSendReset(user: UserRow) {
+    setResetLoadingId(user.id);
+    const res = await sendPasswordReset(user.id);
+    setResetLoadingId(null);
+    if (res.success) {
+      toast.success(`Link de recuperación enviado a ${user.email}.`);
+    } else {
+      toast.error(res.message ?? "No se pudo enviar el link.");
+    }
+  }
 
   async function handleToggleStatus(user: UserRow) {
     setLoadingId(user.id);
@@ -70,6 +82,7 @@ export function UsersTable({ data }: UsersTableProps) {
               <tr className="border-b border-[var(--color-neutral-100)] bg-primary/5 text-primary">
                 <th className="text-left px-5 py-3 text-xs font-medium text-primary">Nombre</th>
                 <th className="text-left px-5 py-3 text-xs font-medium text-primary hidden sm:table-cell">Correo</th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-primary hidden lg:table-cell">DNI</th>
                 <th className="text-left px-5 py-3 text-xs font-medium text-primary]">Rol</th>
                 <th className="text-left px-5 py-3 text-xs font-medium text-primary] hidden md:table-cell">Registro</th>
                 <th className="text-left px-5 py-3 text-xs font-medium text-primary">Estado</th>
@@ -101,6 +114,9 @@ export function UsersTable({ data }: UsersTableProps) {
                       </td>
                       <td className="px-5 py-3 text-[var(--color-neutral-500)] hidden sm:table-cell">
                         {user.email}
+                      </td>
+                      <td className="px-5 py-3 text-[var(--color-neutral-500)] hidden lg:table-cell">
+                        {user.dni || <span className="text-[var(--color-neutral-300)]">—</span>}
                       </td>
                       <td className="px-5 py-3">
                         <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${cfg.color}`}>
@@ -136,13 +152,20 @@ export function UsersTable({ data }: UsersTableProps) {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => setEditModal({ userId: user.id, fullName: user.full_name, email: user.email })}>
+                            <DropdownMenuItem onClick={() => setEditModal({ userId: user.id, fullName: user.full_name, apellidos: user.apellidos, dni: user.dni, email: user.email })}>
                               <Pencil className="size-3.5" />
                               Editar
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => setChangeRoleModal({ userId: user.id, userName: user.full_name, currentRole: user.role })}>
                               <ArrowLeftRight className="size-3.5" />
                               Cambiar rol
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleSendReset(user)}
+                              disabled={resetLoadingId === user.id}
+                            >
+                              <KeyRound className="size-3.5" />
+                              {resetLoadingId === user.id ? "Enviando…" : "Recuperar contraseña"}
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             {user.status === "inactivo" ? (
@@ -195,7 +218,11 @@ export function UsersTable({ data }: UsersTableProps) {
       )}
       {editModal && (
         <EditUserModal
-          {...editModal}
+          userId={editModal.userId}
+          fullName={editModal.fullName}
+          apellidos={editModal.apellidos}
+          dni={editModal.dni}
+          email={editModal.email}
           open={!!editModal}
           onClose={() => setEditModal(null)}
           onSuccess={() => { setEditModal(null); router.refresh(); }}

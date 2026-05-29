@@ -41,7 +41,7 @@ export function CourseCard({
         aria-label={`Ver curso: ${course.title}`}
       />
       {/* Portada */}
-      <div className="h-36 bg-[var(--color-neutral-100)] flex items-center justify-center">
+      <div className="h-50 bg-[var(--color-neutral-100)] flex items-center justify-center">
         {course.cover_url ? (
           <img
             src={course.cover_url}

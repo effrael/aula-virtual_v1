@@ -1,10 +1,10 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import type { CustomFont } from "@/lib/certificate-fonts";
 
 const TemplateDesigner = dynamic(
-  () =>
-    import("./template-designer").then((m) => m.TemplateDesigner),
+  () => import("./template-designer").then((m) => m.TemplateDesigner),
   { ssr: false }
 );
 
@@ -12,6 +12,7 @@ type Props = {
   templateId: string;
   pdfUrl: string;
   pdfmeTemplate: Record<string, unknown>;
+  customFonts: CustomFont[];
 };
 
 export function DesignerLoader(props: Props) {

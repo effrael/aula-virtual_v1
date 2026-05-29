@@ -1,10 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 
 export type UserRole = "docente" | "alumno" | "colaborador";
 
 export type UserRow = {
   id: string;
   full_name: string;
+  apellidos: string;
+  dni: string;
   email: string;
   joined: string;
   status: "activo" | "inactivo";
@@ -31,10 +34,21 @@ export async function getUsersByRole(role: UserRole): Promise<UserRow[]> {
     return [];
   }
 
+  // Fetch apellidos y dni de profiles (columnas nuevas no incluidas en el RPC)
+  const ids = (data as { id: string }[]).map((u) => u.id);
+  const { data: extras } = await supabaseAdmin
+    .from("profiles")
+    .select("id, apellidos, dni")
+    .in("id", ids);
+
+  const extrasMap = new Map((extras ?? []).map((e) => [e.id, e]));
+
   return data.map(
     (u: { id: string; full_name: string; email: string; status: string; created_at: string }) => ({
       id: u.id,
       full_name: u.full_name,
+      apellidos: extrasMap.get(u.id)?.apellidos ?? "",
+      dni: extrasMap.get(u.id)?.dni ?? "",
       email: u.email,
       status: u.status as "activo" | "inactivo",
       joined: formatDate(u.created_at),

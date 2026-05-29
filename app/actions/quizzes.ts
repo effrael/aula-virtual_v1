@@ -517,7 +517,17 @@ export async function submitAttempt(
 
         const courseId = (lessonData?.module as any)?.course_id;
         if (courseId) {
-          await generateCertificate(user.id, courseId, score);
+          // No emitir si el alumno ya tiene un certificado para este curso
+          const { data: existing } = await supabaseAdmin
+            .from("certificates")
+            .select("id")
+            .eq("student_id", user.id)
+            .eq("course_id", courseId)
+            .maybeSingle();
+
+          if (!existing) {
+            await generateCertificate(user.id, courseId, score);
+          }
         }
       }
     } catch (err) {

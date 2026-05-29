@@ -84,25 +84,36 @@ function CreateUserForm({
 
   return (
     <form action={action} className="flex flex-col gap-4 mt-2">
-      {/* Nombre */}
+      {/* Nombre + Apellidos */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="nombre" className="text-sm font-medium text-[var(--color-neutral-700)]">
+            Nombre
+          </label>
+          <Input id="nombre" name="nombre" type="text" placeholder="Juan" required />
+          {state?.errors?.nombre && (
+            <p className="text-xs text-red-600">{state.errors.nombre[0]}</p>
+          )}
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="apellidos" className="text-sm font-medium text-[var(--color-neutral-700)]">
+            Apellidos
+          </label>
+          <Input id="apellidos" name="apellidos" type="text" placeholder="García López" required />
+          {state?.errors?.apellidos && (
+            <p className="text-xs text-red-600">{state.errors.apellidos[0]}</p>
+          )}
+        </div>
+      </div>
+
+      {/* DNI */}
       <div className="flex flex-col gap-1.5">
-        <label
-          htmlFor="full_name"
-          className="text-sm font-medium text-[var(--color-neutral-700)]"
-        >
-          Nombre completo
+        <label htmlFor="dni" className="text-sm font-medium text-[var(--color-neutral-700)]">
+          DNI
         </label>
-        <Input
-          id="full_name"
-          name="full_name"
-          type="text"
-          placeholder="Juan García"
-          required
-        />
-        {state?.errors?.full_name && (
-          <p className="text-xs text-red-600">
-            {state.errors.full_name[0]}
-          </p>
+        <Input id="dni" name="dni" type="text" placeholder="12345678" maxLength={15} required />
+        {state?.errors?.dni && (
+          <p className="text-xs text-red-600">{state.errors.dni[0]}</p>
         )}
       </div>
 

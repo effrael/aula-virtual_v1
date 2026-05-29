@@ -189,7 +189,7 @@ export function StudentCourseView({ course, initialCompleted = [], userId }: Pro
   return (
     <div className="flex overflow-hidden" style={{ height: "calc(100svh - 3.5rem)" }}>
       {/* ── Sidebar de navegación ── */}
-      <aside className="w-64 shrink-0 border-r border-[var(--color-neutral-200)] bg-white flex flex-col min-h-0">
+      <aside className="w-64 shrink-0 border-r border-[var(--color-neutral-200)] bg-white flex flex-col min-h-0 hidden">
         {/* Info del curso + progreso */}
         <div className="p-4 border-b border-[var(--color-neutral-200)]">
           <p className="text-xs font-bold text-primary truncate leading-snug">

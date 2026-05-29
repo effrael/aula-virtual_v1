@@ -6,12 +6,15 @@ import { getActionRole } from "@/lib/auth-guard";
 
 const REVALIDATE = "/dashboard/certificates";
 
+export type CustomFont = { name: string; url: string };
+
 export type CertificateTemplate = {
   id: string;
   name: string;
   description: string | null;
   pdf_url: string;
   pdfme_template: Record<string, unknown>;
+  custom_fonts: CustomFont[];
   created_at: string;
 };
 
@@ -20,7 +23,7 @@ export type CertificateTemplate = {
 export async function getCertificateTemplates(): Promise<CertificateTemplate[]> {
   const { data, error } = await supabaseAdmin
     .from("certificate_templates")
-    .select("id, name, description, pdf_url, pdfme_template, created_at")
+    .select("id, name, description, pdf_url, pdfme_template, custom_fonts, created_at")
     .is("deleted_at", null)
     .order("created_at", { ascending: false });
 
@@ -97,6 +100,29 @@ export async function savePdfmeTemplate(
   if (error) {
     console.error("[savePdfmeTemplate]", error.message);
     return { message: "No se pudo guardar el diseño." };
+  }
+
+  revalidatePath(REVALIDATE);
+  return { success: true };
+}
+
+// ── saveCustomFonts ──────────────────────────────────────────────────────────
+
+export async function saveCustomFonts(
+  id: string,
+  customFonts: CustomFont[]
+): Promise<{ success?: boolean; message?: string }> {
+  const role = await getActionRole();
+  if (!role || role === "alumno") return { message: "Sin permisos." };
+
+  const { error } = await supabaseAdmin
+    .from("certificate_templates")
+    .update({ custom_fonts: customFonts })
+    .eq("id", id);
+
+  if (error) {
+    console.error("[saveCustomFonts]", error.message);
+    return { message: "No se pudieron guardar las fuentes." };
   }
 
   revalidatePath(REVALIDATE);

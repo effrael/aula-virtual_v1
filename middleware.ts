@@ -28,8 +28,13 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Ruta pública de verificación de certificados — no requiere auth
-  if (pathname.startsWith("/verify")) {
+  // Rutas públicas — no requieren auth
+  if (
+    pathname.startsWith("/verify") ||
+    pathname.startsWith("/auth/callback") ||
+    pathname.startsWith("/recuperar-contrasena") ||
+    pathname.startsWith("/nueva-contrasena")
+  ) {
     return response;
   }
 

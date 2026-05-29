@@ -4,6 +4,7 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getActionRole } from "@/lib/auth-guard";
+import { sendWelcomeEmail, sendPasswordResetEmail } from "@/lib/email";
 
 const ALLOWED_USER_MGMT = ["admin", "superadmin", "colaborador"];
 
@@ -47,15 +48,14 @@ export async function changeUserRole(
 // ── Editar usuario ─────────────────────────────────────────────────────────
 
 const UpdateUserSchema = z.object({
-  full_name: z
-    .string()
-    .min(2, { message: "El nombre debe tener al menos 2 caracteres." })
-    .trim(),
+  nombre: z.string().min(2, { message: "El nombre debe tener al menos 2 caracteres." }).trim(),
+  apellidos: z.string().min(2, { message: "Los apellidos deben tener al menos 2 caracteres." }).trim(),
   email: z.email({ message: "Ingresa un correo electrónico válido." }).trim(),
+  dni: z.string().min(1, { message: "El DNI es obligatorio." }).max(15, { message: "El DNI no puede tener más de 15 caracteres." }).trim(),
 });
 
 export type UpdateUserState =
-  | { errors?: { full_name?: string[]; email?: string[] }; message?: string; success?: boolean }
+  | { errors?: { nombre?: string[]; apellidos?: string[]; email?: string[]; dni?: string[] }; message?: string; success?: boolean }
   | undefined;
 
 export async function updateUser(
@@ -67,19 +67,22 @@ export async function updateUser(
   if (!role || !ALLOWED_USER_MGMT.includes(role)) return { message: "Sin permisos." };
 
   const parsed = UpdateUserSchema.safeParse({
-    full_name: formData.get("full_name"),
+    nombre: formData.get("nombre"),
+    apellidos: formData.get("apellidos"),
     email: formData.get("email"),
+    dni: formData.get("dni"),
   });
 
   if (!parsed.success) {
     return { errors: parsed.error.flatten().fieldErrors };
   }
 
-  const { full_name, email } = parsed.data;
+  const { nombre, apellidos, email, dni } = parsed.data;
+  const full_name = `${nombre} ${apellidos}`;
 
   const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(
     userId,
-    { email, user_metadata: { full_name } }
+    { email, user_metadata: { full_name, nombre, apellidos, dni } }
   );
 
   if (authError) {
@@ -92,7 +95,7 @@ export async function updateUser(
 
   const { error: profileError } = await supabaseAdmin
     .from("profiles")
-    .update({ full_name })
+    .update({ full_name, apellidos, dni })
     .eq("id", userId);
 
   if (profileError) {
@@ -100,7 +103,7 @@ export async function updateUser(
     return { message: "Datos actualizados en auth pero falló en profiles." };
   }
 
-  revalidatePath("/dashboard/users", "layout");
+  revalidatePath("/dashboard/users");
   return { success: true };
 }
 
@@ -134,27 +137,23 @@ export async function deleteUser(
 // ── Crear usuario ──────────────────────────────────────────────────────────
 
 const CreateUserSchema = z.object({
-  full_name: z
-    .string()
-    .min(2, { message: "El nombre debe tener al menos 2 caracteres." })
-    .trim(),
+  nombre: z.string().min(2, { message: "El nombre debe tener al menos 2 caracteres." }).trim(),
+  apellidos: z.string().min(2, { message: "Los apellidos deben tener al menos 2 caracteres." }).trim(),
   email: z.email({ message: "Ingresa un correo electrónico válido." }).trim(),
-  password: z
-    .string()
-    .min(8, { message: "La contraseña debe tener al menos 8 caracteres." })
-    .trim(),
-  role: z.enum(["docente", "alumno", "colaborador"], {
-    message: "Selecciona un rol válido.",
-  }),
+  password: z.string().min(8, { message: "La contraseña debe tener al menos 8 caracteres." }).trim(),
+  role: z.enum(["docente", "alumno", "colaborador"], { message: "Selecciona un rol válido." }),
+  dni: z.string().min(1, { message: "El DNI es obligatorio." }).max(15, { message: "El DNI no puede tener más de 15 caracteres." }).trim(),
 });
 
 export type CreateUserState =
   | {
       errors?: {
-        full_name?: string[];
+        nombre?: string[];
+        apellidos?: string[];
         email?: string[];
         password?: string[];
         role?: string[];
+        dni?: string[];
       };
       message?: string;
       success?: boolean;
@@ -169,10 +168,12 @@ export async function createUser(
   if (!callerRole || !ALLOWED_USER_MGMT.includes(callerRole)) return { message: "Sin permisos." };
 
   const raw = {
-    full_name: formData.get("full_name"),
+    nombre: formData.get("nombre"),
+    apellidos: formData.get("apellidos"),
     email: formData.get("email"),
     password: formData.get("password"),
     role: formData.get("role"),
+    dni: formData.get("dni") || undefined,
   };
   console.log("[createUser] raw fields:", raw);
 
@@ -183,24 +184,69 @@ export async function createUser(
     return { errors: parsed.error.flatten().fieldErrors };
   }
 
-  const { full_name, email, password, role } = parsed.data;
+  const { nombre, apellidos, email, password, role, dni } = parsed.data;
+  const full_name = `${nombre} ${apellidos}`;
 
   const { error } = await supabaseAdmin.auth.admin.createUser({
     email,
     password,
     email_confirm: true,
-    user_metadata: { full_name, role },
+    user_metadata: { full_name, nombre, apellidos, dni, role },
   });
 
   if (error) {
     console.error("[createUser]", { code: error.code, status: error.status, message: error.message });
+
+    // Si el email ya existe, verificar si es un usuario soft-deleted y reactivarlo
+    if (error.code === "email_exists" || error.code === "user_already_exists") {
+      const { data: listData } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+      const existing = listData?.users.find((u) => u.email === email);
+
+      if (existing) {
+        const { data: profile } = await supabaseAdmin
+          .from("profiles")
+          .select("deleted_at")
+          .eq("id", existing.id)
+          .single();
+
+        if (profile?.deleted_at) {
+          // Reactivar usuario eliminado con los nuevos datos
+          await supabaseAdmin.auth.admin.updateUserById(existing.id, {
+            password,
+            ban_duration: "none",
+            user_metadata: { full_name, nombre, apellidos, dni, role },
+          });
+          await supabaseAdmin
+            .from("profiles")
+            .update({ full_name, apellidos, dni: dni ?? null, role, status: "activo", deleted_at: null })
+            .eq("id", existing.id);
+
+          try {
+            await sendWelcomeEmail({ to: email, full_name, password, role });
+          } catch (emailError) {
+            console.error("[createUser] email (reactivate):", emailError);
+          }
+
+          revalidatePath(USERS_PATH);
+          return { success: true };
+        }
+      }
+
+      return { message: "Este correo ya está registrado en la plataforma." };
+    }
+
     const errorMessages: Record<string, string> = {
-      email_exists: "Este correo ya está registrado en la plataforma.",
-      user_already_exists: "Este correo ya está registrado en la plataforma.",
       invalid_email: "El correo electrónico no tiene un formato válido.",
       weak_password: "La contraseña es muy débil. Usa al menos 8 caracteres con letras y números.",
     };
     return { message: errorMessages[error.code ?? ""] ?? "Ocurrió un error inesperado. Intenta nuevamente." };
+  }
+
+  try {
+    await sendWelcomeEmail({ to: email, full_name, password, role });
+  } catch (emailError) {
+    console.error("[createUser] email:", emailError);
+    // El usuario fue creado; el fallo de email no revierte la operación
   }
 
   revalidatePath(USERS_PATH);
@@ -289,11 +335,12 @@ export async function importUsers(
 
   for (let i = 0; i < rows.length; i++) {
     const cols = rows[i].split(delimiter).map((c) => c.trim().replace(/^"|"$/g, ""));
-    const [full_name, email, password, role] = cols;
+    const [nombre, apellidos, email, password, role, dni] = cols;
+    const full_name = nombre && apellidos ? `${nombre} ${apellidos}` : (nombre ?? "");
     const rowNum = i + 2;
 
-    if (!full_name || !email || !password || !role) {
-      result.failed.push({ row: rowNum, email: email ?? "—", reason: "Faltan campos obligatorios." });
+    if (!nombre || !apellidos || !email || !password || !role || !dni) {
+      result.failed.push({ row: rowNum, email: email ?? "—", reason: "Faltan campos obligatorios (nombre, apellidos, email, password, role, dni)." });
       continue;
     }
 
@@ -311,20 +358,135 @@ export async function importUsers(
       email,
       password,
       email_confirm: true,
-      user_metadata: { full_name, role },
+      user_metadata: { full_name, nombre, apellidos, dni: dni ?? null, role },
     });
 
     if (error) {
-      const reason =
-        error.code === "email_exists" || error.code === "user_already_exists"
-          ? "El correo ya está registrado."
-          : error.message;
-      result.failed.push({ row: rowNum, email, reason });
+      if (error.code === "email_exists" || error.code === "user_already_exists") {
+        // Intentar reactivar si es soft-deleted
+        const { data: listData } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+        const existing = listData?.users.find((u) => u.email === email);
+
+        if (existing) {
+          const { data: profile } = await supabaseAdmin
+            .from("profiles")
+            .select("deleted_at")
+            .eq("id", existing.id)
+            .single();
+
+          if (profile?.deleted_at) {
+            await supabaseAdmin.auth.admin.updateUserById(existing.id, {
+              password,
+              ban_duration: "none",
+              user_metadata: { full_name, nombre, apellidos, dni: dni ?? null, role },
+            });
+            await supabaseAdmin
+              .from("profiles")
+              .update({ full_name, apellidos, dni: dni ?? null, role, status: "activo", deleted_at: null })
+              .eq("id", existing.id);
+
+            result.created++;
+            try {
+              await sendWelcomeEmail({ to: email, full_name, password, role });
+            } catch (emailError) {
+              console.error(`[importUsers] email (reactivate) row ${rowNum}:`, emailError);
+            }
+            continue;
+          }
+        }
+
+        result.failed.push({ row: rowNum, email, reason: "El correo ya está registrado." });
+      } else {
+        result.failed.push({ row: rowNum, email, reason: error.message });
+      }
     } else {
       result.created++;
+      try {
+        await sendWelcomeEmail({ to: email, full_name, password, role });
+      } catch (emailError) {
+        console.error(`[importUsers] email row ${rowNum}:`, emailError);
+      }
     }
   }
 
   revalidatePath(USERS_PATH);
   return { success: true, result };
+}
+
+// ── Recuperación de contraseña iniciada por el propio usuario ────────────
+
+export async function requestPasswordReset(
+  email: string
+): Promise<{ success?: boolean; message?: string }> {
+  const redirectTo = `${process.env.NEXT_PUBLIC_URL_APP}/auth/callback?type=recovery`;
+
+  // Buscar usuario por email para obtener nombre
+  const { data: listData } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+  const existing = listData?.users.find((u) => u.email === email);
+
+  if (!existing) {
+    // No revelar si el email existe o no
+    return { success: true };
+  }
+
+  const full_name = existing.user_metadata?.full_name ?? "Usuario";
+
+  const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+    type: "recovery",
+    email,
+    options: { redirectTo },
+  });
+
+  if (linkError || !linkData?.properties?.action_link) {
+    console.error("[requestPasswordReset] generateLink:", linkError?.message);
+    return { success: true }; // no revelar error al usuario
+  }
+
+  try {
+    await sendPasswordResetEmail({ to: email, full_name, link: linkData.properties.action_link });
+  } catch (emailError) {
+    console.error("[requestPasswordReset] email:", emailError);
+  }
+
+  return { success: true };
+}
+
+// ── Enviar link de recuperación de contraseña ─────────────────────────────
+
+export async function sendPasswordReset(
+  userId: string
+): Promise<{ success?: boolean; message?: string }> {
+  const callerRole = await getActionRole();
+  if (!callerRole || !ALLOWED_USER_MGMT.includes(callerRole)) return { message: "Sin permisos." };
+
+  // Obtener email y nombre del usuario
+  const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.getUserById(userId);
+  if (authError || !authUser.user) return { message: "Usuario no encontrado." };
+
+  const email = authUser.user.email;
+  const full_name = authUser.user.user_metadata?.full_name ?? "Usuario";
+  if (!email) return { message: "El usuario no tiene correo registrado." };
+
+  // Generar link de recuperación
+  const redirectTo = `${process.env.NEXT_PUBLIC_URL_APP}/auth/callback?type=recovery`;
+  // redirects to /nueva-contrasena after exchanging the code
+  const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+    type: "recovery",
+    email,
+    options: { redirectTo },
+  });
+
+  if (linkError || !linkData?.properties?.action_link) {
+    console.error("[sendPasswordReset] generateLink:", linkError?.message);
+    return { message: "No se pudo generar el link de recuperación." };
+  }
+
+  try {
+    await sendPasswordResetEmail({ to: email, full_name, link: linkData.properties.action_link });
+  } catch (emailError) {
+    console.error("[sendPasswordReset] email:", emailError);
+    return { message: "No se pudo enviar el correo de recuperación." };
+  }
+
+  return { success: true };
 }

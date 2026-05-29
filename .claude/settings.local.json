@@ -3,7 +3,11 @@
     "allow": [
       "Bash(npm install:*)",
       "Bash(pnpm add:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(npx shadcn@latest add combobox --yes)",
+      "Bash(npx shadcn@latest add popover command --yes)",
+      "Bash(npx shadcn@latest add popover command --yes --overwrite)",
+      "Bash(npx shadcn@latest add tabs --yes)"
     ]
   }
 }

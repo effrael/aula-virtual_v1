@@ -74,10 +74,12 @@ export default async function VerifyPage({
                   })}
                 </span>
               </div>
-              <div className="flex justify-between pb-2">
-                <span className="text-[var(--color-neutral-500)]">Código</span>
-                <span className="font-mono text-xs text-[var(--color-neutral-700)]">{cert.verification_code}</span>
-              </div>
+              {cert.certificate_code && (
+                <div className="flex justify-between pb-2">
+                  <span className="text-[var(--color-neutral-500)]">Código</span>
+                  <span className="font-mono text-sm font-semibold text-[var(--color-neutral-900)]">{cert.certificate_code}</span>
+                </div>
+              )}
             </div>
 
             {cert.pdf_url && (

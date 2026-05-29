@@ -8,9 +8,11 @@ import { LIBRARY_BUCKET } from "@/lib/storage-utils";
 import { getEnrollments, getStudents } from "@/lib/queries/enrollments";
 import { ModuleList } from "./_components/module-list";
 import { EnrollmentsSection } from "./_components/enrollments-section";
+import { CertificateSection } from "./_components/certificate-section";
 import { StudentCourseView } from "../_components/student-course-view";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { getCertificateTemplates } from "@/app/actions/certificate-templates";
 
 const statusStyles = {
   publicado: "bg-green-100 text-green-700",
@@ -43,13 +45,14 @@ export default async function CourseDetailPage({
   const role = profile?.role ?? "alumno";
   const canEdit = role !== "alumno";
 
-  const [course, videos, libraryFiles, enrollments, students] =
+  const [course, videos, libraryFiles, enrollments, students, certTemplates] =
     await Promise.all([
       getCourseWithModules(id),
       canEdit ? getVideos() : Promise.resolve([]),
       canEdit ? getStorageFiles(LIBRARY_BUCKET) : Promise.resolve([]),
       canEdit ? getEnrollments(id) : Promise.resolve([]),
       canEdit ? getStudents() : Promise.resolve([]),
+      canEdit ? getCertificateTemplates() : Promise.resolve([]),
     ]);
 
   if (!course) notFound();
@@ -206,6 +209,16 @@ export default async function CourseDetailPage({
               students={students}
             />
           </div>
+        )}
+
+        {/* Sección de certificado */}
+        {canEdit && (
+          <CertificateSection
+            courseId={course.id}
+            templates={certTemplates.map((t) => ({ id: t.id, name: t.name }))}
+            initialTemplateId={course.certificate_template_id}
+            initialDescription={course.certificate_description}
+          />
         )}
       </main>
     </>

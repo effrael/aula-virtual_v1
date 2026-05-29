@@ -17,11 +17,11 @@ import * as XLSX from "xlsx"; // usado solo para downloadTemplate
 
 function downloadTemplate() {
   const rows = [
-    { full_name: "Juan García",  email: "juan@escuela.com",  password: "Pass1234!", role: "alumno"      },
-    { full_name: "María López",  email: "maria@escuela.com", password: "Pass1234!", role: "docente"     },
-    { full_name: "Carlos Ruiz",  email: "carlos@escuela.com",password: "Pass1234!", role: "colaborador" },
+    { nombre: "Juan",   apellidos: "García López",  email: "juan@escuela.com",   password: "Pass1234!", role: "alumno",      dni: "12345678"  },
+    { nombre: "María",  apellidos: "López Ríos",    email: "maria@escuela.com",  password: "Pass1234!", role: "docente",     dni: "87654321"  },
+    { nombre: "Carlos", apellidos: "Ruiz Torres",   email: "carlos@escuela.com", password: "Pass1234!", role: "colaborador", dni: "11223344"  },
   ];
-  const ws = XLSX.utils.json_to_sheet(rows, { header: ["full_name", "email", "password", "role"] });
+  const ws = XLSX.utils.json_to_sheet(rows, { header: ["nombre", "apellidos", "email", "password", "role", "dni"] });
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Usuarios");
   XLSX.writeFile(wb, "plantilla_usuarios.xlsx");
@@ -99,7 +99,7 @@ export function ImportUsersModal() {
                 1. Descarga la plantilla
               </p>
               <p className="text-xs text-[var(--color-neutral-500)] mt-0.5">
-                Columnas: <code className="bg-[var(--color-neutral-100)] px-1 rounded text-xs">full_name, email, password, role</code>
+                Columnas: <code className="bg-[var(--color-neutral-100)] px-1 rounded text-xs">nombre, apellidos, email, password, role, dni</code>
                 <br />
                 Roles válidos: <code className="bg-[var(--color-neutral-100)] px-1 rounded text-xs">alumno</code>{" "}
                 <code className="bg-[var(--color-neutral-100)] px-1 rounded text-xs">docente</code>{" "}
