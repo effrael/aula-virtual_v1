@@ -1,0 +1,16 @@
+@import "tailwindcss";
+
+@media (max-width: 767px) {
+  body {
+    display: flex;
+    align-items: center;
+  }
+}
+
+@theme {
+  --color-brand: #03337D;
+  --color-brand-light: #0a4da8;
+  --color-brand-dark: #022259;
+  --color-accent: #22c55e;
+  --color-accent-hover: #16a34a;
+}

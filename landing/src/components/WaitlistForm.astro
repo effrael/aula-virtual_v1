@@ -1,0 +1,246 @@
+---
+
+---
+
+<style>
+	.hero-section {
+		height: 100%;
+	}
+	@media (min-width: 768px) {
+		.hero-section {
+			height: 100dvh;
+		}
+	}
+</style>
+
+<section
+	class="hero-section relative z-10 flex flex-col items-center overflow-hidden px-4"
+>
+	<div
+		class="fixed right-0 top-0 -z-1 w-full max-w-[250px] xl:max-w-[450px]"
+	>
+		<img src="/grid-01.svg" alt="grid" />
+	</div>
+	<div
+		class="fixed bottom-0 left-0 -z-1 w-full max-w-[250px] rotate-180 xl:max-w-[450px]"
+	>
+		<img src="/grid-01.svg" alt="grid" />
+	</div>
+	<!-- Top content -->
+	<div class="flex shrink-0 flex-col items-center pt-6 md:pt-10">
+	<!-- Badge pill -->
+	<div
+		class="mb-4 flex items-center gap-2 rounded-full border-2 border-white/5  bg-white/10 text-sm backdrop-blur-sm md:mb-6"
+	>
+		<span
+			class="rounded-full bg-[#D3F90A] px-4 py-1.5 text-[10px] md:text-xs  text-black font-medium "
+			>Preview</span
+		>
+		<span class="text-gray-300 pr-4 text-[10px] md:text-xs">Plataforma educativa en desarrollo</span>
+	</div>
+
+	<!-- Main heading -->
+	<h1 class="max-w-3xl text-center text-3xl md:text-5xl lg:text-6xl">
+		Tu aula virtual,<br />
+		lista en minutos.
+	</h1>
+
+	<!-- Subtitle -->
+	<p class="mt-3 max-w-xl text-center text-sm font-normal text-blue-200/90 md:mt-4 md:text-base">
+		La plataforma todo-en-uno para gestionar cursos, estudiantes y
+		certificados. Sé de los primeros en acceder.
+	</p>
+	</div>
+
+	<!-- Phone mockup + floating cards -->
+	<div
+		class="relative mt-10 flex w-full max-w-4xl items-end justify-center md:mt-0 md:min-h-0 md:flex-1"
+	>
+		<!-- Floating card: left top — Cursos ilimitados -->
+		<div
+			class="absolute left-0 top-2 z-20 hidden md:flex items-center gap-2 rounded-xl bg-white px-3 py-2.5 shadow-lg md:top-8 md:gap-3 md:rounded-2xl md:px-5 md:py-4"
+		>
+			<div class="flex h-8 w-8 items-center justify-center rounded-full bg-accent/15 text-accent md:h-10 md:w-10">
+				<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 md:h-5 md:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+			</div>
+			<div>
+				<p class="text-[10px] text-gray-400 md:text-xs">Crea y gestiona</p>
+				<p class="text-xs font-bold text-gray-900 md:text-sm">Cursos ilimitados</p>
+			</div>
+		</div>
+
+		<!-- Floating icon: left middle -->
+		<div
+			class="absolute left-4 top-[45%] z-20 hidden h-8 w-8 items-center justify-center rounded-full bg-accent shadow-lg md:flex md:left-24 md:h-10 md:w-10"
+		>
+			<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white md:h-5 md:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+		</div>
+
+		<!-- Floating card: right top — Certificados automáticos -->
+		<div
+			class="absolute right-0 top-6 z-20 hidden md:flex items-center gap-2 rounded-xl bg-white px-3 py-2.5 shadow-lg md:top-12 md:gap-3 md:rounded-2xl md:px-5 md:py-4"
+		>
+			<div class="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-blue-500 md:h-10 md:w-10">
+				<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 md:h-5 md:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg>
+			</div>
+			<div>
+				<p class="text-[10px] text-gray-400 md:text-xs">Genera</p>
+				<p class="text-xs font-bold text-gray-900 md:text-sm">Certificados automáticos</p>
+			</div>
+		</div>
+
+		<!-- Floating card: left — Todo en uno (bottom-left on mobile) -->
+		<div
+			class="absolute -left-2 bottom-4 z-20 flex items-center gap-2 rounded-xl bg-white px-3 py-2.5 shadow-lg md:bottom-16 md:left-4 md:gap-3 md:rounded-2xl md:px-5 md:py-4"
+		>
+			<div class="flex h-8 w-8 items-center justify-center rounded-full bg-purple-100 text-purple-500 md:h-10 md:w-10">
+				<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 md:h-5 md:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+			</div>
+			<div>
+				<p class="text-[10px] text-gray-400 md:text-xs">Plataforma</p>
+				<p class="text-xs font-bold text-gray-900 md:text-sm">Todo en uno</p>
+			</div>
+		</div>
+
+		<!-- Floating icon: right middle -->
+		<div
+			class="absolute right-4 top-[55%] z-20 hidden h-8 w-8 items-center justify-center rounded-full bg-yellow-400 shadow-lg md:flex md:right-24 md:h-10 md:w-10"
+		>
+			<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white md:h-5 md:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+		</div>
+
+		<!-- Floating card: right — Listo para usar (bottom-right on mobile) -->
+		<div
+			class="absolute -right-2 bottom-4 z-20 flex items-center gap-2 rounded-xl bg-white px-3 py-2.5 shadow-lg md:bottom-20 md:right-4 md:gap-3 md:rounded-2xl md:px-5 md:py-4"
+		>
+			<div class="flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 text-amber-500 md:h-10 md:w-10">
+				<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 md:h-5 md:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+			</div>
+			<div>
+				<p class="text-[10px] text-gray-400 md:text-xs">Configura en</p>
+				<p class="text-xs font-bold text-gray-900 md:text-sm">Minutos, no días</p>
+			</div>
+		</div>
+
+		<!-- Phone + Form unit (form always relative to phone) -->
+		<div class="relative z-10 w-[240px] md:w-[340px]">
+			<!-- Phone mockup -->
+			<div class="overflow-hidden">
+				<!-- Outer shell with metallic edge -->
+				<div
+					class="rounded-[3rem] p-[3px] md:rounded-b-none md:pb-0"
+					style="background: linear-gradient(145deg, #e0e0e0 0%, #b0b0b0 30%, #d4d4d4 50%, #a0a0a0 70%, #c0c0c0 100%);"
+				>
+					<!-- Inner bezel -->
+					<div class="rounded-[2.8rem] bg-black p-[10px] md:rounded-b-none md:pb-0">
+						<!-- Screen area -->
+						<div class="relative overflow-hidden rounded-[2.2rem] bg-white md:rounded-b-none">
+							<!-- Dynamic Island -->
+							<div class="absolute top-3 left-1/2 z-20 flex h-[26px] w-[100px] -translate-x-1/2 items-center justify-center rounded-full bg-black">
+								<div class="h-[8px] w-[8px] rounded-full bg-gray-800 ring-1 ring-gray-700"></div>
+							</div>
+							<!-- Status bar -->
+							<div class="flex items-center justify-between px-7 pt-4 pb-1 text-[11px] font-semibold text-black">
+								<span>9:41</span>
+								<div class="flex items-center gap-1">
+									<svg class="h-3 w-3" viewBox="0 0 18 12" fill="black"><rect x="0" y="9" width="3" height="3" rx="0.5"></rect><rect x="4" y="6" width="3" height="6" rx="0.5"></rect><rect x="8" y="3" width="3" height="9" rx="0.5"></rect><rect x="12" y="0" width="3" height="12" rx="0.5"></rect></svg>
+									<svg class="h-3 w-3.5" fill="black" viewBox="0 0 24 24"><path d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3a4.237 4.237 0 00-6 0zm-4-4l2 2a7.074 7.074 0 0110 0l2-2C15.14 9.14 8.87 9.14 5 13z"></path></svg>
+									<div class="flex items-center gap-[2px]">
+										<div class="h-[10px] w-[20px] rounded-[3px] border border-black/80 p-[1.5px]">
+											<div class="h-full w-[75%] rounded-[1.5px] bg-black"></div>
+										</div>
+										<div class="h-[4px] w-[1.5px] rounded-r-full bg-black/80"></div>
+									</div>
+								</div>
+							</div>
+							<!-- Fixed spacer -->
+							<div class="h-[350px] md:h-[420px]"></div>
+						</div>
+					</div>
+				</div>
+			</div>
+			<!-- Side buttons -->
+			<div class="absolute -left-[1px] top-[120px] h-[28px] w-[3px] rounded-l-sm bg-gray-400"></div>
+			<div class="absolute -left-[1px] top-[160px] h-[50px] w-[3px] rounded-l-sm bg-gray-400"></div>
+			<div class="absolute -left-[1px] top-[220px] h-[50px] w-[3px] rounded-l-sm bg-gray-400"></div>
+			<div class="absolute -right-[1px] top-[170px] h-[60px] w-[3px] rounded-r-sm bg-gray-400"></div>
+
+			<!-- Form: positioned relative to the phone, always on top -->
+			<div
+				class="absolute left-1/2 top-[60px] z-30 w-[280px] -translate-x-1/2 rounded-2xl bg-white p-4 shadow-2xl md:top-[80px] md:w-[420px] md:p-6"
+			>
+				<div class="text-center mb-3 md:mb-5">
+					<p class="text-sm font-bold text-gray-900 md:text-base">Lista de espera</p>
+					<p class="mt-1 text-[11px] text-gray-400 md:text-xs">
+						Sé de los primeros en acceder a la plataforma.
+					</p>
+				</div>
+				<form id="waitlist-form" class="space-y-2 md:space-y-3">
+					<input
+						type="text"
+						id="name"
+						name="name"
+						required
+						placeholder="Tu nombre"
+						class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-xs text-gray-900 placeholder-gray-400 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/30 md:px-4 md:py-3 md:text-sm"
+					/>
+					<input
+						type="email"
+						id="email"
+						name="email"
+						required
+						placeholder="tu@correo.com"
+						class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-xs text-gray-900 placeholder-gray-400 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/30 md:px-4 md:py-3 md:text-sm"
+					/>
+					<button
+						type="submit"
+						class="w-full cursor-pointer rounded-xl bg-brand-dark py-2.5 text-center text-xs font-semibold text-white transition hover:bg-brand-dark/90 disabled:cursor-not-allowed disabled:opacity-50 md:py-3.5 md:text-sm"
+					>
+						¡Quiero unirme!
+					</button>
+				</form>
+				<p id="form-message" class="mt-3 hidden text-center text-xs"></p>
+			</div>
+		</div>
+	</div>
+</section>
+
+<script>
+	import { supabase } from "../lib/supabase";
+
+	const form = document.getElementById("waitlist-form") as HTMLFormElement;
+	const message = document.getElementById(
+		"form-message",
+	) as HTMLParagraphElement;
+	const submitBtn = form.querySelector(
+		'button[type="submit"]',
+	) as HTMLButtonElement;
+
+	form.addEventListener("submit", async (e) => {
+		e.preventDefault();
+		submitBtn.disabled = true;
+		message.classList.add("hidden");
+
+		const formData = new FormData(form);
+		const name = formData.get("name") as string;
+		const email = formData.get("email") as string;
+
+		const { error } = await supabase
+			.from("waitlist")
+			.insert({ name, email });
+
+		if (error) {
+			message.textContent =
+				error.code === "23505"
+					? "Este correo ya está registrado."
+					: "Ocurrió un error. Intenta de nuevo.";
+			message.className = "mt-3 text-center text-sm text-red-5	00";
+		} else {
+			message.textContent = "¡Registro exitoso! Te avisaremos pronto.";
+			message.className = "mt-3 text-center text-xs text-green-500";
+			form.reset();
+		}
+
+		submitBtn.disabled = false;
+	});
+</script>
