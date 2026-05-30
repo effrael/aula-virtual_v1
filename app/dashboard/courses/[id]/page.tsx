@@ -28,12 +28,18 @@ const statusLabels = {
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 
+const PAGE_SIZE = 1;
+
 export default async function CourseDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ page?: string }>;
 }) {
   const { id } = await params;
+  const { page: pageParam } = await searchParams;
+  const page = Math.max(1, parseInt(pageParam ?? "1", 10) || 1);
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -45,15 +51,36 @@ export default async function CourseDetailPage({
   const role = profile?.role ?? "alumno";
   const canEdit = role !== "alumno";
 
-  const [course, videos, libraryFiles, enrollments, students, certTemplates] =
+  const [course, videos, libraryFiles, enrollmentsResult, students, certTemplates] =
     await Promise.all([
       getCourseWithModules(id),
       canEdit ? getVideos() : Promise.resolve([]),
       canEdit ? getStorageFiles(LIBRARY_BUCKET) : Promise.resolve([]),
-      canEdit ? getEnrollments(id) : Promise.resolve([]),
+      canEdit ? getEnrollments(id, page, PAGE_SIZE) : Promise.resolve({ data: [], total: 0 }),
       canEdit ? getStudents() : Promise.resolve([]),
       canEdit ? getCertificateTemplates() : Promise.resolve([]),
     ]);
+
+  const enrollments = enrollmentsResult.data;
+  const enrollmentsTotal = enrollmentsResult.total;
+
+  const AUTO_FIELDS_SET = new Set(["nombre", "apellidos", "dni", "codigo", "qr"]);
+  const certTemplatesForSection = certTemplates.map((t) => {
+    const tpl = t.pdfme_template as any;
+    const customFields: { name: string; defaultValue: string }[] = [];
+    if (tpl?.schemas) {
+      for (const page of tpl.schemas) {
+        if (Array.isArray(page)) {
+          for (const field of page) {
+            if (field?.name && !AUTO_FIELDS_SET.has(field.name)) {
+              customFields.push({ name: field.name, defaultValue: field.content ?? "" });
+            }
+          }
+        }
+      }
+    }
+    return { id: t.id, name: t.name, customFields };
+  });
 
   if (!course) notFound();
 
@@ -200,24 +227,25 @@ export default async function CourseDetailPage({
           />
         </div>
 
-        {/* Sección de inscripciones */}
-        {canEdit && (
-          <div>
-            <EnrollmentsSection
-              courseId={course.id}
-              enrollments={enrollments}
-              students={students}
-            />
-          </div>
-        )}
-
         {/* Sección de certificado */}
         {canEdit && (
           <CertificateSection
             courseId={course.id}
-            templates={certTemplates.map((t) => ({ id: t.id, name: t.name }))}
+            templates={certTemplatesForSection}
             initialTemplateId={course.certificate_template_id}
-            initialDescription={course.certificate_description}
+            initialCustomInputs={course.certificate_custom_inputs}
+          />
+        )}
+
+        {/* Sección de inscripciones */}
+        {canEdit && (
+          <EnrollmentsSection
+            courseId={course.id}
+            enrollments={enrollments}
+            students={students}
+            total={enrollmentsTotal}
+            page={page}
+            pageSize={PAGE_SIZE}
           />
         )}
       </main>

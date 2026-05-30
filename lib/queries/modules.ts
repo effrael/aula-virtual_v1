@@ -32,7 +32,7 @@ export type CourseWithModules = {
   status: "borrador" | "publicado" | "archivado";
   teacher: string | null;
   certificate_template_id: string | null;
-  certificate_description: string | null;
+  certificate_custom_inputs: Record<string, string> | null;
   modules: ModuleRow[];
 };
 
@@ -46,7 +46,7 @@ export async function getCourseWithModules(
     .select(
       `
       id, title, description, cover_url, status,
-      certificate_template_id, certificate_description,
+      certificate_template_id, certificate_custom_inputs,
       teacher:profiles!teacher_id(full_name),
       modules(
         id, title, position, is_active,
@@ -100,7 +100,7 @@ export async function getCourseWithModules(
     status: data.status as "borrador" | "publicado" | "archivado",
     teacher: (data.teacher as { full_name: string } | null)?.full_name ?? null,
     certificate_template_id: (data as any).certificate_template_id ?? null,
-    certificate_description: (data as any).certificate_description ?? null,
+    certificate_custom_inputs: (data as any).certificate_custom_inputs ?? null,
     modules,
   };
 }

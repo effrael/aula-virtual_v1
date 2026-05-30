@@ -6,12 +6,15 @@ import { text, image, barcodes } from "@pdfme/schemas";
 import { getCertificateFonts } from "@/lib/certificate-fonts";
 import { getActionRole } from "@/lib/auth-guard";
 import { revalidatePath } from "next/cache";
+import { sendCertificateEmail } from "@/lib/email";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export type IssuedCertificate = {
   id: string;
+  student_id: string;
   student_name: string;
+  student_email: string | null;
   course_title: string;
   template_name: string | null;
   verification_code: string;
@@ -55,10 +58,22 @@ export async function generateCertificate(
   templateId?: string,
   customInputs?: Record<string, string>
 ): Promise<{ certificateId?: string; verificationCode?: string; pdfUrl?: string; message?: string }> {
+  // Check for duplicate certificate
+  const { data: duplicate } = await supabaseAdmin
+    .from("certificates")
+    .select("id")
+    .eq("student_id", studentId)
+    .eq("course_id", courseId)
+    .maybeSingle();
+
+  if (duplicate) {
+    return { message: "Este alumno ya tiene un certificado para este curso." };
+  }
+
   // Get course with certificate config
   const { data: course } = await supabaseAdmin
     .from("courses")
-    .select("title, certificate_template_id, certificate_description")
+    .select("title, certificate_template_id, certificate_custom_inputs, teacher:profiles!teacher_id(full_name, apellidos, dni)")
     .eq("id", courseId)
     .single();
 
@@ -68,6 +83,8 @@ export async function generateCertificate(
 
   // Resolve template: explicit > course config > first available
   const resolvedTemplateId = templateId ?? (course as any).certificate_template_id ?? null;
+  const courseCustomInputs = (course as any).certificate_custom_inputs as Record<string, string> | null;
+  const teacher = (course as any).teacher as { full_name: string; apellidos: string | null; dni: string } | null;
 
   const templateQuery = resolvedTemplateId
     ? supabaseAdmin
@@ -104,6 +121,28 @@ export async function generateCertificate(
     : (student.full_name ?? "");
   const dni = student.dni ?? "";
 
+  // Resolve token-based fields from course config
+  const fechaEmision = new Intl.DateTimeFormat("es-PE", { day: "2-digit", month: "long", year: "numeric" }).format(new Date());
+  const tokenMap: Record<string, string> = {
+    __fecha__:               fechaEmision,
+    __curso__:               (course as any).title ?? "",
+    "__docente.nombre__":    teacher?.full_name ?? "",
+    "__docente.apellidos__": teacher?.apellidos ?? "",
+    "__docente.dni__":       teacher?.dni ?? "",
+    __nombre__:              nombre,
+    __apellidos__:           apellidos,
+    __dni__:                 dni,
+  };
+  function resolveTokens(inputs: Record<string, string>): Record<string, string> {
+    return Object.fromEntries(
+      Object.entries(inputs).map(([k, v]) => [k, tokenMap[v] ?? v])
+    );
+  }
+  const resolvedCourseInputs = courseCustomInputs ? resolveTokens(courseCustomInputs) : {};
+  const resolvedCustomInputs = customInputs
+    ? { ...resolvedCourseInputs, ...customInputs }
+    : resolvedCourseInputs;
+
   // Use provided code or auto-generate sequential one
   let certificateCode = customInputs?.codigo?.trim() ?? "";
   if (!certificateCode) {
@@ -133,7 +172,7 @@ export async function generateCertificate(
   }
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-  const verifyUrl = `${baseUrl}/verify/${cert.verification_code}`;
+  const verifyUrl = `${baseUrl}/verify/${certificateCode}`;
 
   // Generate PDF if template has a pdfme design
   let pdfUrl: string | null = null;
@@ -155,9 +194,9 @@ export async function generateCertificate(
         qr: verifyUrl,
       };
 
-      const extraCustom = customInputs
+      const extraCustom = resolvedCustomInputs
         ? Object.fromEntries(
-            Object.entries(customInputs).filter(
+            Object.entries(resolvedCustomInputs).filter(
               ([k]) => !["nombre", "apellidos", "dni", "codigo", "qr"].includes(k)
             )
           )
@@ -256,7 +295,7 @@ export async function getCertificateByCode(code: string): Promise<CertificateVer
     .select(
       "verification_code, certificate_code, pdf_url, score, issued_at, student:profiles!student_id(full_name), course:courses!course_id(title)"
     )
-    .eq("verification_code", code)
+    .eq("certificate_code", code)
     .maybeSingle();
 
   if (error || !data) {
@@ -277,25 +316,24 @@ export async function getCertificateByCode(code: string): Promise<CertificateVer
 
 // ── getIssuedCertificates ────────────────────────────────────────────────────
 
-export async function getIssuedCertificates(): Promise<IssuedCertificate[]> {
-  const { data, error } = await supabaseAdmin
-    .from("certificates")
-    .select(`
-      id, verification_code, certificate_code, pdf_url, score, issued_at,
-      student:profiles!student_id(full_name),
-      course:courses!course_id(title),
-      template:certificate_templates!template_id(name)
-    `)
-    .order("issued_at", { ascending: false });
+const CERTS_PAGE_SIZE = 5;
 
-  if (error || !data) {
-    console.error("[getIssuedCertificates]", error?.message);
-    return [];
+async function buildEmailMap(studentIds: string[]): Promise<Map<string, string | null>> {
+  const emailMap = new Map<string, string | null>();
+  if (studentIds.length === 0) return emailMap;
+  const { data: { users: authUsers } } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+  for (const u of authUsers) {
+    if (studentIds.includes(u.id)) emailMap.set(u.id, u.email ?? null);
   }
+  return emailMap;
+}
 
-  return data.map((c: any) => ({
+function mapCertRow(c: any, emailMap: Map<string, string | null>): IssuedCertificate {
+  return {
     id: c.id,
+    student_id: c.student_id,
     student_name: c.student?.full_name ?? "",
+    student_email: emailMap.get(c.student_id) ?? null,
     course_title: c.course?.title ?? "",
     template_name: c.template?.name ?? null,
     verification_code: c.verification_code,
@@ -303,7 +341,73 @@ export async function getIssuedCertificates(): Promise<IssuedCertificate[]> {
     pdf_url: c.pdf_url,
     score: c.score,
     issued_at: c.issued_at,
-  }));
+  };
+}
+
+export async function getIssuedCertificates(
+  page = 1,
+  search = ""
+): Promise<{ data: IssuedCertificate[]; total: number }> {
+  const from = (page - 1) * CERTS_PAGE_SIZE;
+  const to   = from + CERTS_PAGE_SIZE - 1;
+
+  let query = supabaseAdmin
+    .from("certificates")
+    .select(`
+      id, student_id, verification_code, certificate_code, pdf_url, score, issued_at,
+      student:profiles!student_id(full_name),
+      course:courses!course_id(title),
+      template:certificate_templates!template_id(name)
+    `, { count: "exact" })
+    .order("issued_at", { ascending: false });
+
+  if (search.trim()) {
+    const term = search.trim();
+    // Search by certificate_code OR by matching student profiles
+    const { data: matchingProfiles } = await supabaseAdmin
+      .from("profiles")
+      .select("id")
+      .ilike("full_name", `%${term}%`);
+
+    const profileIds = matchingProfiles?.map((p) => p.id) ?? [];
+    const idList = profileIds.length > 0 ? profileIds.join(",") : "00000000-0000-0000-0000-000000000000";
+
+    query = query.or(`certificate_code.ilike.%${term}%,student_id.in.(${idList})`);
+  }
+
+  const { data, error, count } = await query.range(from, to);
+
+  if (error || !data) {
+    console.error("[getIssuedCertificates]", error?.message);
+    return { data: [], total: 0 };
+  }
+
+  const emailMap = await buildEmailMap(data.map((c: any) => c.student_id).filter(Boolean));
+
+  return {
+    data: data.map((c: any) => mapCertRow(c, emailMap)),
+    total: count ?? 0,
+  };
+}
+
+export async function getAllIssuedCertificatesForExport(): Promise<IssuedCertificate[]> {
+  const role = await getActionRole();
+  if (!role || role === "alumno") return [];
+
+  const { data, error } = await supabaseAdmin
+    .from("certificates")
+    .select(`
+      id, student_id, verification_code, certificate_code, pdf_url, score, issued_at,
+      student:profiles!student_id(full_name),
+      course:courses!course_id(title),
+      template:certificate_templates!template_id(name)
+    `)
+    .order("issued_at", { ascending: false });
+
+  if (error || !data) return [];
+
+  const emailMap = await buildEmailMap(data.map((c: any) => c.student_id).filter(Boolean));
+  return data.map((c: any) => mapCertRow(c, emailMap));
 }
 
 // ── getCertificatesStats ─────────────────────────────────────────────────────
@@ -418,6 +522,7 @@ export type BatchRow = {
   apellidos: string;
   nombre:    string;
   dni:       string;
+  email?:    string;
   [key: string]: string | undefined;
 };
 
@@ -440,51 +545,118 @@ export async function generateCertificateBatch(
 
   const results: BatchResult[] = [];
 
+  // Pre-load all auth users once to avoid repeated listUsers calls
+  const { data: { users: authUsers } } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
+    const fullName = `${row.apellidos} ${row.nombre}`.trim();
 
-    // Look up student by DNI
-    const { data: student } = await supabaseAdmin
+    // 1. Find student by DNI
+    const { data: profileRows } = await supabaseAdmin
       .from("profiles")
       .select("id")
-      .eq("dni", row.dni)
-      .eq("role", "alumno")
-      .maybeSingle();
+      .eq("dni", row.dni.trim());
 
-    if (!student) {
-      results.push({ row: i + 1, dni: row.dni, nombre: `${row.apellidos} ${row.nombre}`, success: false, message: "Alumno no encontrado por DNI." });
-      continue;
+    let studentId: string | null = profileRows?.[0]?.id ?? null;
+    let studentCreated = false;
+    let tempPassword: string | undefined;
+
+    // 2. If not found, create user (requires email)
+    if (!studentId) {
+      if (!row.email?.trim()) {
+        results.push({ row: i + 1, dni: row.dni, nombre: fullName, success: false, message: "No encontrado por DNI y sin email para crear cuenta." });
+        continue;
+      }
+
+      const email = row.email.trim();
+      const existingAuthUser = authUsers.find((u) => u.email === email);
+
+      if (existingAuthUser) {
+        studentId = existingAuthUser.id;
+      } else {
+        tempPassword = crypto.randomUUID();
+        const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+          email,
+          email_confirm: true,
+          password: tempPassword,
+          user_metadata: {
+            full_name: fullName,
+            nombre:    row.nombre.trim(),
+            apellidos: row.apellidos.trim(),
+            dni:       row.dni.trim(),
+            role:      "alumno",
+          },
+        });
+
+        if (authError || !authData.user) {
+          results.push({ row: i + 1, dni: row.dni, nombre: fullName, success: false, message: `Error al crear usuario: ${authError?.message}` });
+          continue;
+        }
+
+        studentId = authData.user.id;
+        studentCreated = true;
+
+        await supabaseAdmin
+          .from("profiles")
+          .update({ full_name: fullName, apellidos: row.apellidos.trim(), dni: row.dni.trim(), role: "alumno", status: "inactivo" })
+          .eq("id", studentId);
+      }
     }
 
-    // Check for existing certificate
+    // 3. Check for existing certificate
     const { data: existing } = await supabaseAdmin
       .from("certificates")
       .select("id")
-      .eq("student_id", student.id)
+      .eq("student_id", studentId)
       .eq("course_id", courseId)
       .maybeSingle();
 
     if (existing) {
-      results.push({ row: i + 1, dni: row.dni, nombre: `${row.apellidos} ${row.nombre}`, success: false, message: "Ya tiene un certificado para este curso." });
+      results.push({ row: i + 1, dni: row.dni, nombre: fullName, success: false, message: "Ya tiene un certificado para este curso." });
       continue;
     }
 
-    const { apellidos, nombre, dni, ...customFields } = row;
+    // 4. Generate certificate
+    const { apellidos, nombre, dni, email, ...rest } = row;
     const customInputs: Record<string, string> = {};
-    for (const [k, v] of Object.entries(customFields)) {
+    for (const [k, v] of Object.entries(rest)) {
       if (v) customInputs[k] = v;
     }
 
     const res = await generateCertificate(
-      student.id, courseId, null, templateId,
+      studentId, courseId, null, templateId,
       Object.keys(customInputs).length > 0 ? customInputs : undefined
     );
 
-    if (res.certificateId) {
-      results.push({ row: i + 1, dni, nombre: `${apellidos} ${nombre}`, success: true, pdfUrl: res.pdfUrl ?? undefined });
-    } else {
-      results.push({ row: i + 1, dni, nombre: `${apellidos} ${nombre}`, success: false, message: res.message });
+    if (!res.certificateId) {
+      results.push({ row: i + 1, dni, nombre: fullName, success: false, message: res.message });
+      continue;
     }
+
+    // 5. Send email if email available
+    if (row.email?.trim()) {
+      try {
+        const { data: certRow } = await supabaseAdmin
+          .from("certificates")
+          .select("course:courses!course_id(title)")
+          .eq("id", res.certificateId)
+          .single();
+
+        await sendCertificateEmail({
+          to:           row.email.trim(),
+          full_name:    fullName,
+          course_title: (certRow?.course as any)?.title ?? "",
+          password:     studentCreated ? tempPassword : undefined,
+          isNewUser:    studentCreated,
+          pdfUrl:       res.pdfUrl,
+        });
+      } catch {
+        // Email falla silenciosamente, certificado ya fue emitido
+      }
+    }
+
+    results.push({ row: i + 1, dni, nombre: fullName, success: true, pdfUrl: res.pdfUrl ?? undefined });
   }
 
   return results;
@@ -515,32 +687,65 @@ export async function generateCertificateExternal(
   // 1. Find or create student by DNI ─────────────────────────────────────────
   let studentId: string;
   let studentCreated = false;
+  let tempPassword: string | undefined;
 
-  const { data: existingProfile } = await supabaseAdmin
+  const { data: profileRows } = await supabaseAdmin
     .from("profiles")
     .select("id")
-    .eq("dni", input.dni.trim())
-    .maybeSingle();
+    .eq("dni", input.dni.trim());
+
+  const existingProfile = profileRows?.[0] ?? null;
 
   if (existingProfile) {
     studentId = existingProfile.id;
   } else {
     const email = input.email!.trim();
 
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      email_confirm: true,                 // mark as confirmed — no verification email sent
-      password: crypto.randomUUID(),       // random password; user resets via "forgot password" if needed
-      user_metadata: { full_name: `${input.apellidos} ${input.nombre}`.trim() },
-    });
+    const { data: { users: authUsers } } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+    const existingAuthUser = authUsers.find((u) => u.email === email);
 
-    if (authError || !authData.user) {
-      console.error("[generateCertificateExternal] createUser:", authError?.message);
-      return { message: "No se pudo crear el usuario." };
+    if (existingAuthUser) {
+      studentId = existingAuthUser.id;
+      console.log("[external] reusing auth user by email:", studentId);
+    } else {
+      const fullNameForCreate = `${input.apellidos} ${input.nombre}`.trim();
+      tempPassword = crypto.randomUUID();
+
+      console.log("[external] createUser payload:", {
+        email,
+        email_confirm: true,
+        user_metadata: {
+          full_name: fullNameForCreate,
+          nombre:    input.nombre.trim(),
+          apellidos: input.apellidos.trim(),
+          dni:       input.dni.trim(),
+          role:      "alumno",
+        },
+      });
+
+      const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+        email,
+        email_confirm: true,
+        password: tempPassword,
+        user_metadata: {
+          full_name: fullNameForCreate,
+          nombre:    input.nombre.trim(),
+          apellidos: input.apellidos.trim(),
+          dni:       input.dni.trim(),
+          role:      "alumno",
+        },
+      });
+
+      console.log("[external] createUser response — id:", authData?.user?.id, "error code:", authError?.code, "status:", authError?.status, "msg:", authError?.message);
+
+      if (authError || !authData.user) {
+        console.error("[generateCertificateExternal] createUser:", authError?.message);
+        return { message: "No se pudo crear el usuario. Verifica que el correo sea válido." };
+      }
+
+      studentId = authData.user.id;
+      studentCreated = true;
     }
-
-    studentId = authData.user.id;
-    studentCreated = true;
 
     // The Supabase trigger creates the profile row; update with full details
     const fullName = `${input.apellidos} ${input.nombre}`.trim();
@@ -576,7 +781,67 @@ export async function generateCertificateExternal(
     return { message: result.message ?? "No se pudo emitir el certificado." };
   }
 
+  // 4. Send email with certificate PDF ────────────────────────────────────────
+  try {
+    const { data: certRow } = await supabaseAdmin
+      .from("certificates")
+      .select("course:courses!course_id(title)")
+      .eq("id", result.certificateId)
+      .single();
+
+    await sendCertificateEmail({
+      to:           input.email.trim(),
+      full_name:    `${input.apellidos} ${input.nombre}`.trim(),
+      course_title: (certRow?.course as any)?.title ?? "",
+      password:     studentCreated ? tempPassword : undefined,
+      isNewUser:    studentCreated,
+      pdfUrl:       result.pdfUrl,
+    });
+  } catch (emailErr) {
+    console.error("[generateCertificateExternal] email:", emailErr);
+    // El certificado ya fue emitido, el fallo de email no lo revierte
+  }
+
   return { certificateId: result.certificateId, pdfUrl: result.pdfUrl, studentCreated };
+}
+
+// ── resendCertificateEmail ───────────────────────────────────────────────────
+
+export async function resendCertificateEmail(
+  id: string
+): Promise<{ success?: boolean; message?: string }> {
+  const role = await getActionRole();
+  if (!role || role === "alumno") return { message: "Sin permisos." };
+
+  const { data: cert, error } = await supabaseAdmin
+    .from("certificates")
+    .select(`
+      student_id, certificate_code, pdf_url,
+      student:profiles!student_id(full_name),
+      course:courses!course_id(title)
+    `)
+    .eq("id", id)
+    .single();
+
+  if (error || !cert) return { message: "Certificado no encontrado." };
+
+  const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(cert.student_id);
+  const email = authUser?.user?.email;
+  if (!email) return { message: "El alumno no tiene correo registrado." };
+
+  try {
+    await sendCertificateEmail({
+      to:           email,
+      full_name:    (cert.student as any)?.full_name ?? "",
+      course_title: (cert.course as any)?.title ?? "",
+      isNewUser:    false,
+      pdfUrl:       cert.pdf_url,
+    });
+    return { success: true };
+  } catch (err) {
+    console.error("[resendCertificateEmail]", err);
+    return { message: "Error al enviar el correo." };
+  }
 }
 
 // ── deleteCertificate ────────────────────────────────────────────────────────

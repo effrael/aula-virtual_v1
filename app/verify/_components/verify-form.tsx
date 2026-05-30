@@ -22,15 +22,16 @@ export function VerifyForm() {
       <Input
         value={code}
         onChange={(e) => setCode(e.target.value)}
-        placeholder="Código de verificación (UUID)"
-        className="text-center font-mono"
+        placeholder="Ej: RC-0001-26"
+        className="font-mono"
+        autoFocus
       />
       <Button
         type="submit"
         disabled={!code.trim()}
         className="bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white w-full"
       >
-        Verificar
+        Verificar certificado
       </Button>
     </form>
   );

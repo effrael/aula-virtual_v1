@@ -101,7 +101,7 @@ export default async function CertificatesPage() {
                       </a>
                     )}
                     <Link
-                      href={`/verify/${cert.verification_code}`}
+                      href={`/verify/${cert.certificate_code}`}
                       className="flex items-center gap-1.5 text-xs text-[var(--color-primary)] hover:underline ml-auto"
                     >
                       <ExternalLink className="size-3.5" />
@@ -118,9 +118,9 @@ export default async function CertificatesPage() {
   }
 
   // ── Vista admin/docente/colaborador ────────────────────────────────────────
-  const [templates, issuedCertificates, stats, students, allCourses] = await Promise.all([
+  const [templates, issuedCertificatesResult, stats, students, allCourses] = await Promise.all([
     getCertificateTemplates(),
-    getIssuedCertificates(),
+    getIssuedCertificates(1),
     getCertificatesStats(),
     getStudents(),
     getCourses(),
@@ -257,7 +257,10 @@ export default async function CertificatesPage() {
               Certificados emitidos
             </h3>
           </div>
-          <IssuedCertificatesTable certificates={issuedCertificates} />
+          <IssuedCertificatesTable
+            initialData={issuedCertificatesResult.data}
+            total={issuedCertificatesResult.total}
+          />
         </div>
       </main>
     </>

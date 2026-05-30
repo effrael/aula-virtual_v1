@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { UserPlus, UserX, Users } from "lucide-react";
+import { UserPlus, UserX, Users, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,13 +19,24 @@ type Props = {
   courseId: string;
   enrollments: EnrollmentRow[];
   students: StudentRow[];
+  total: number;
+  page: number;
+  pageSize: number;
 };
 
-export function EnrollmentsSection({ courseId, enrollments, students }: Props) {
+export function EnrollmentsSection({
+  courseId,
+  enrollments,
+  students,
+  total,
+  page,
+  pageSize,
+}: Props) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [pending, startTransition] = useTransition();
 
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const enrolledIds = new Set(enrollments.map((e) => e.student_id));
   const available = students.filter(
     (s) =>
@@ -65,8 +76,7 @@ export function EnrollmentsSection({ courseId, enrollments, students }: Props) {
             Alumnos inscritos
           </h2>
           <p className="text-xs text-[var(--color-neutral-500)] mt-0.5">
-            {enrollments.length}{" "}
-            {enrollments.length === 1 ? "alumno inscrito" : "alumnos inscritos"}
+            {total} {total === 1 ? "alumno inscrito" : "alumnos inscritos"}
           </p>
         </div>
 
@@ -129,7 +139,7 @@ export function EnrollmentsSection({ courseId, enrollments, students }: Props) {
         </Dialog>
       </div>
 
-      {enrollments.length === 0 ? (
+      {total === 0 ? (
         <div className="flex flex-col items-center gap-3 py-12 text-center border border-dashed rounded-xl bg-white">
           <Users className="size-8 text-[var(--color-neutral-300)]" />
           <div>
@@ -142,31 +152,89 @@ export function EnrollmentsSection({ courseId, enrollments, students }: Props) {
           </div>
         </div>
       ) : (
-        <div className="flex flex-col divide-y bg-white border rounded-xl overflow-hidden">
-          {enrollments.map((e) => (
-            <div
-              key={e.id}
-              className="flex items-center justify-between px-4 py-3"
-            >
-              <div className="flex items-center gap-3">
-                <span className="flex items-center justify-center size-8 rounded-full bg-[var(--color-neutral-100)] text-sm font-semibold text-[var(--color-neutral-600)] shrink-0">
-                  {e.full_name.charAt(0).toUpperCase()}
-                </span>
-                <span className="text-sm font-medium text-[var(--color-neutral-800)]">
-                  {e.full_name}
-                </span>
-              </div>
+        <div className="bg-white border rounded-xl overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b bg-[var(--color-neutral-50)]">
+                <th className="px-4 py-2.5 text-left text-xs font-semibold text-[var(--color-neutral-500)] uppercase tracking-wide">
+                  Nombre y apellidos
+                </th>
+                <th className="px-4 py-2.5 text-left text-xs font-semibold text-[var(--color-neutral-500)] uppercase tracking-wide">
+                  Email
+                </th>
+                <th className="px-4 py-2.5 text-left text-xs font-semibold text-[var(--color-neutral-500)] uppercase tracking-wide">
+                  DNI
+                </th>
+                <th className="px-4 py-2.5 text-right text-xs font-semibold text-[var(--color-neutral-500)] uppercase tracking-wide">
+                  Acciones
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[var(--color-neutral-100)]">
+              {enrollments.map((e) => (
+                <tr key={e.id} className="hover:bg-[var(--color-neutral-50)] transition-colors">
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2.5">
+                      <span className="flex items-center justify-center size-7 rounded-full bg-[var(--color-neutral-100)] text-xs font-semibold text-[var(--color-neutral-600)] shrink-0">
+                        {e.full_name.charAt(0).toUpperCase()}
+                      </span>
+                      <span className="font-medium text-[var(--color-neutral-800)]">
+                        {e.full_name} {e.apellidos}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-[var(--color-neutral-600)]">
+                    {e.email || <span className="text-[var(--color-neutral-300)]">—</span>}
+                  </td>
+                  <td className="px-4 py-3 text-[var(--color-neutral-600)] font-mono text-xs">
+                    {e.dni || <span className="text-[var(--color-neutral-300)]">—</span>}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <button
+                      onClick={() => handleUnenroll(e.id)}
+                      disabled={pending}
+                      title="Quitar del curso"
+                      className="p-1.5 rounded-md text-[var(--color-neutral-400)] hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-50"
+                    >
+                      <UserX className="size-4" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
 
-              <button
-                onClick={() => handleUnenroll(e.id)}
-                disabled={pending}
-                title="Quitar del curso"
-                className="p-1.5 rounded-md text-[var(--color-neutral-400)] hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-50"
-              >
-                <UserX className="size-4" />
-              </button>
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-4 py-2.5 border-t bg-[var(--color-neutral-50)]">
+              <p className="text-xs text-[var(--color-neutral-500)]">
+                Página {page} de {totalPages}
+              </p>
+              <div className="flex items-center gap-1">
+                <a
+                  href={`?page=${page - 1}`}
+                  aria-disabled={page <= 1}
+                  className={`p-1.5 rounded-md transition-colors ${
+                    page <= 1
+                      ? "pointer-events-none text-[var(--color-neutral-300)]"
+                      : "text-[var(--color-neutral-500)] hover:bg-[var(--color-neutral-100)]"
+                  }`}
+                >
+                  <ChevronLeft className="size-4" />
+                </a>
+                <a
+                  href={`?page=${page + 1}`}
+                  aria-disabled={page >= totalPages}
+                  className={`p-1.5 rounded-md transition-colors ${
+                    page >= totalPages
+                      ? "pointer-events-none text-[var(--color-neutral-300)]"
+                      : "text-[var(--color-neutral-500)] hover:bg-[var(--color-neutral-100)]"
+                  }`}
+                >
+                  <ChevronRight className="size-4" />
+                </a>
+              </div>
             </div>
-          ))}
+          )}
         </div>
       )}
     </div>

@@ -343,7 +343,7 @@ function CsvTab({ courses, templates, onSuccess }: Pick<Props, "courses" | "temp
 
   const selectedTemplate = templates.find((t) => t.id === templateId);
   const templateCustomFields = selectedTemplate?.customFields.map((f) => f.name) ?? [];
-  const allHeaders = ["apellidos", "nombre", "dni", "codigo", ...templateCustomFields];
+  const allHeaders = ["apellidos", "nombre", "dni", "email", "codigo", ...templateCustomFields];
 
   // ── download XLSX template ─────────────────────────────────────────────────
   async function handleDownloadTemplate() {
@@ -420,7 +420,7 @@ function CsvTab({ courses, templates, onSuccess }: Pick<Props, "courses" | "temp
     if (err > 0) toast.warning(`${err} fila(s) con error.`);
   }
 
-  const extraHeaders = headers.filter((h) => !["apellidos","nombre","dni"].includes(h)); // codigo y custom fields se muestran
+  const extraHeaders = headers.filter((h) => !["apellidos","nombre","dni","email"].includes(h)); // codigo y custom fields se muestran
 
   return (
     <div className="flex flex-col gap-4 pt-4">
@@ -456,7 +456,7 @@ function CsvTab({ courses, templates, onSuccess }: Pick<Props, "courses" | "temp
       </div>
       {rows.length === 0 && (
         <p className="text-[11px] text-[var(--color-neutral-400)] -mt-2">
-          Descarga la plantilla, complétala y súbela. <strong>dni</strong> es obligatorio. <strong>codigo</strong> es opcional — déjalo vacío para generar automático o pon el código existente.
+          Descarga la plantilla, complétala y súbela. <strong>dni</strong> es obligatorio. <strong>email</strong> es requerido si el alumno no está registrado — se creará su cuenta automáticamente. <strong>codigo</strong> es opcional.
         </p>
       )}
 

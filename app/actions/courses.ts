@@ -163,7 +163,7 @@ export async function updateCourseStatus(
 export async function updateCourseCertificate(
   courseId: string,
   templateId: string | null,
-  description: string | null
+  customInputs: Record<string, string> | null
 ): Promise<CourseActionResult> {
   const role = await getActionRole();
   if (!role || role === "alumno") return { message: "Sin permisos." };
@@ -174,7 +174,7 @@ export async function updateCourseCertificate(
     .from("courses")
     .update({
       certificate_template_id: templateId || null,
-      certificate_description: description || null,
+      certificate_custom_inputs: customInputs && Object.keys(customInputs).length > 0 ? customInputs : null,
     })
     .eq("id", courseId)
     .is("deleted_at", null);
